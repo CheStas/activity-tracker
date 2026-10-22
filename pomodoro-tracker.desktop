@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Activity Tracker
+Comment=Touchscreen activity chess clock
+# Adjust the path, then copy this file to ~/.config/autostart/
+Exec=/home/admin/projects/pomodoro-tracker/scripts/start.sh
+Terminal=false
+X-GNOME-Autostart-enabled=true

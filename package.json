@@ -1,0 +1,11 @@
+{
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "scripts/start.sh",
+    "start:browser": "scripts/start.sh --browser",
+    "start:kiosk": "scripts/start.sh --kiosk",
+    "build:single": "node scripts/build-single.mjs",
+    "test": "node --test"
+  }
+}
