@@ -42,7 +42,11 @@ async function start() {
   navigator.storage?.persist?.();
   await init();
   applyAppearance(state.settings);
-  subscribe((ev) => ev === 'change' && applyAppearance(state.settings));
+  subscribe((ev) => {
+    if (ev !== 'change') return;
+    applyAppearance(state.settings);
+    syncWakeLock();
+  });
 
   mountMain($('#view-main'), {
     onSettings: () => show('settings'),
@@ -81,7 +85,8 @@ async function start() {
   }, 1000);
 
   show('main');
-  keepAwake();
+  document.addEventListener('visibilitychange', syncWakeLock);
+  syncWakeLock();
 }
 
 /** Document full screen. Esc is captured (Keyboard Lock) so it stays "back"; holding Esc leaves full screen. */
@@ -105,18 +110,31 @@ function quit() {
   setTimeout(() => alert('This window cannot be closed from the page. Close it with Alt+F4 or Ctrl+W.'), 300);
 }
 
-/** Screen Wake Lock; it is released when the page is hidden, so re-acquire on visibility. */
-async function keepAwake() {
+/**
+ * Hold a screen Wake Lock while Settings → Keep the screen on is set and the page is visible. The browser drops the
+ * lock when the page is hidden, so this runs again on visibilitychange. `wakeLock` is the pending/held request.
+ */
+let wakeLock = null;
+async function syncWakeLock() {
   if (!('wakeLock' in navigator)) return;
-  const acquire = async () => {
-    try {
-      await navigator.wakeLock.request('screen');
-    } catch (e) {
-      console.warn('Wake lock unavailable:', e.message);
-    }
-  };
-  document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && acquire());
-  acquire();
+  const want = state.settings.keepAwake && document.visibilityState === 'visible';
+  if (want && !wakeLock) {
+    const req = navigator.wakeLock.request('screen').then(
+      (lock) => {
+        lock.addEventListener('release', () => wakeLock === req && (wakeLock = null));
+        return lock;
+      },
+      (e) => {
+        console.warn('Wake lock unavailable:', e.message);
+        if (wakeLock === req) wakeLock = null;
+      },
+    );
+    wakeLock = req;
+  } else if (!want && wakeLock) {
+    const req = wakeLock;
+    wakeLock = null;
+    (await req)?.release();
+  }
 }
 
 start();

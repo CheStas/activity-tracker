@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { assign, totals, dayTotal, gaps, lastSwitch, sessionsFor, closeAt } from '../js/timeline.js';
+import { assign, totals, dayTotal, gaps, lastSwitch, sessionsFor, closeAt, switchTo } from '../js/timeline.js';
 
 const T = (hhmm) => {
   const [h, m] = hhmm.split(':').map(Number);
@@ -92,4 +92,56 @@ test('lastSwitch reports the latest start or end', () => {
   s = assign(s, null, T('09:45'), null, opts);
   assert.equal(lastSwitch(s, T('10:00')), T('09:45'));
   assert.equal(lastSwitch([], T('10:00')), null);
+});
+
+const SEC = 1000;
+const sw = (segs, act, at, extraSec = 0) => switchTo(segs, act, T(at) + extraSec * SEC, MIN, opts);
+
+test('short switch goes to the next activity', () => {
+  let s = sw([], 'A', '09:00');
+  s = sw(s, 'B', '10:00');
+  s = sw(s, 'C', '10:00', 20);
+  assert.deepEqual(view(s), [['A', 540, 600], ['C', 600, null]]);
+});
+
+test('short switch back to the previous activity leaves one session', () => {
+  let s = sw([], 'A', '09:00');
+  s = sw(s, 'B', '10:00');
+  s = sw(s, 'A', '10:00', 20);
+  assert.deepEqual(view(s), [['A', 540, null]]);
+});
+
+test('short run then stop all goes to the touching previous activity', () => {
+  let s = sw([], 'A', '09:00');
+  s = sw(s, 'B', '10:00');
+  s = sw(s, null, '10:00', 30);
+  assert.deepEqual(s.map((x) => [x.activityId, x.start, x.end]), [['A', T('09:00'), T('10:00') + 30 * SEC]]);
+});
+
+test('start and stop within the threshold leaves nothing', () => {
+  let s = sw([], 'A', '09:00');
+  s = sw(s, null, '09:00', 30);
+  assert.deepEqual(view(s), []);
+});
+
+test('short idle gap goes to the next activity', () => {
+  let s = sw([], 'A', '09:00');
+  s = sw(s, null, '10:00');
+  s = sw(s, 'B', '10:00', 40);
+  assert.deepEqual(view(s), [['A', 540, 600], ['B', 600, null]]);
+});
+
+test('runs at or above the threshold are kept', () => {
+  let s = sw([], 'A', '09:00');
+  s = sw(s, 'B', '10:00');
+  s = sw(s, 'C', '10:01');
+  s = sw(s, null, '10:05');
+  s = sw(s, 'D', '10:06');
+  assert.deepEqual(view(s), [['A', 540, 600], ['B', 600, 601], ['C', 601, 605], ['D', 606, null]]);
+});
+
+test('minMs 0 disables merging', () => {
+  let s = switchTo([], 'A', T('09:00'), 0, opts);
+  s = switchTo(s, 'B', T('09:00') + 5 * SEC, 0, opts);
+  assert.equal(s.length, 2);
 });

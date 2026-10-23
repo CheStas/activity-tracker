@@ -16,7 +16,7 @@ A full-screen web app for a Linux PC/laptop with a touchscreen. It works like a 
 | Stack | Browser-only static app (HTML/CSS/vanilla JS ES modules, no build step for the main run) |
 | Storage | IndexedDB in the browser profile; `navigator.storage.persist()` requested |
 | Serving | `python3 -m http.server 8765 --bind 127.0.0.1` (localhost is a secure context, needed for Wake Lock) |
-| Main run | `scripts/start.sh`: Chromium with a dedicated profile. Modes: **app window** (default; title bar, resizable, closable), `--kiosk` (locked full screen), `--browser` (normal window with tabs, screen not kept awake). All modes share the same data. The script and its server exit when the window closes. |
+| Main run | `scripts/start.sh`: Chromium with a dedicated profile. Modes: **app window** (default; title bar, resizable, closable), `--kiosk` (locked full screen), `--browser` (normal window with tabs). All modes share the same data. The script and its server exit when the window closes. |
 | Static hosting | The app folder (`index.html`, `css/`, `js/`) works from any static web server, including a subpath, because all paths are relative. Data is per browser, per device, per site address (IndexedDB); there is no sync. Use **HTTPS** for screen keep-awake and persistent storage. Plain HTTP works too: IDs fall back to `crypto.getRandomValues` because `crypto.randomUUID` needs a secure context. Safari may evict data after about 7 days without visits unless the site is added to the home screen. |
 | Plain HTML (optional) | `node scripts/build-single.mjs` builds `dist/activity-tracker.html`, a single file to open by double-click (browsers block module files on `file://`). No screen keep-awake. **Its data is separate** from the localhost version (a different origin); move data between them with export/import. Rebuild after code changes. |
 | Device | Linux PC/laptop touchscreen; the layout is responsive, with large touch targets |
@@ -64,6 +64,17 @@ running).
 
 `from` is clamped to `[day start, now]`, and `to` to `[from, now]`.
 
+### 4.2 Short switches are ignored
+A tap ends the current run (an activity or idle). When that run is shorter than the **minimum switch** setting
+(default **60 s**, configurable in Settings, "Off" disables it), the run does not count as its own entry:
+- a short **activity** run goes to the **next** activity (the one just tapped starts at the short run's start);
+  when the tap stops everything, it goes to the **previous** activity if that one ended exactly where the short run
+  started, otherwise it is dropped (start and stop within a minute);
+- a short **idle** gap goes to the next activity (it starts where the previous activity ended).
+
+Example: task since 09:00, meeting tapped at 10:00:00 by mistake, task tapped again at 10:00:20 → one task session
+from 09:00, no meeting entry. Backdating from the popup and the day editor is not affected.
+
 ## 5. Day
 - A day starts with the first app start, or when the previous day ends.
 - **Manual reset** (button on the main screen): stops the active segment at now, closes the day (archive and snapshot),
@@ -73,12 +84,21 @@ running).
 - When the app is opened after one or more missed boundaries, the day is closed at the first missed boundary.
 
 ## 6. Main screen (kept minimal)
-- **Header:** day total (since the last reset), followed by the day's start time in smaller text ("since 08:12"); the
-  active activity with its current run (or "idle for X"); the time since the last switch; the clock; small icons for
-  📊 Summary, ⚙️ Settings, ⟲ Reset, ⛶ full screen toggle and ⏻ close app.
-- **Layout** (Settings → Appearance → Buttons): **Rows** (default, described next) or **Tiles**: a grid of vertical
-  tiles (name, total, run, target stacked) stretched to fill the screen. With popularity sizing on, tiles span 1–3
-  grid cells.
+- **Header:**
+  - "Today · Thu, Oct 22": the label and the current date on one line, in the same style
+  - the day total, then the start time of the day's **first activity** in smaller text ("since 08:12"); nothing
+    before the first activity
+  - the active activity with its current run, and the time since the last switch. While idle it shows just "Idle":
+    no idle duration and no "since switch"
+  - the clock
+  - five icon buttons in one matching style (line icons in a shared rounded group): Summary, Settings, Reset day,
+    Full screen toggle (the icon reflects the state), Close app
+- **Layout** (Settings → Appearance → Buttons): **Rows** (default, described next), **Tiles**: a grid of vertical
+  tiles (name, total, run, target stacked) stretched to fill the screen, or **Circles**: round buttons (same
+  content, stacked) wrapped and centered on the screen. With popularity sizing on, tiles span 1–3 grid cells and
+  circles grow up to about 1.6× in diameter.
+- **Empty day** (nothing tracked yet today): a short welcome hint ("Tap an activity to start the day · hold one to
+  set an earlier start") and the buttons centered vertically on the screen.
 - **Theme** (Settings → Appearance → Theme): System (follows the OS) / Dark / Light. The last choice is also mirrored
   to localStorage so the page does not flash the wrong theme on load.
 - **Buttons (Rows layout):** one horizontal row per activity in a centered column (max ≈820 px wide). Rows are not stretched to fill
@@ -109,27 +129,34 @@ running).
 
 ## 8. Settings
 - Activities: add, rename, color, daily target, reorder, hide for today, remove (soft), restore removed
-- Appearance: theme (System/Dark/Light), button layout (Rows/Tiles)
+- Appearance: theme (System/Dark/Light), button layout (Rows/Tiles/Circles)
+- Minimum switch: Off / 15 s / 30 s / 1 min (default) / 2 min / 3 min / 5 min (§4.2)
 - Daily reset hour (0–23)
 - Start in full screen (toggle)
+- Keep the screen on (toggle, **on** by default; §10)
 - Popularity sizing toggle
 - Auto-export a JSON file when a day closes (toggle)
 - Export all data to JSON, import JSON (replaces all data, after a confirmation)
 - Link to the **day editor**: a timeline of today's segments, editing and deleting segments, adding a range
-  (activity + from + to/now), and clearing the whole day
+  (activity + from + to/now), and clearing the whole day. Its bar runs from the first activity's start to the last
+  activity's end (or now while one is running); idle rows appear only for gaps between activities.
 
 ## 9. Summary
 For the current day and every archived day:
-- total tracked time, the start and end of the day, and idle time (untracked gaps between the first start and the last
-  end)
+- total tracked time, the start of the first activity and the end of the last one (or "now" while running), and
+  idle time (untracked gaps between the first start and the last end; time before the first or after the last
+  activity is never idle)
 - per activity: total, percentage, and target delta
-- a horizontal timeline bar and the session list
+- a horizontal timeline bar over the same range, and the session list with idle rows for the gaps between activities
 
 ## 10. Keeping the screen awake
-- In the app: the Wake Lock API (`navigator.wakeLock.request('screen')`), requested again on `visibilitychange`.
-- `scripts/start.sh` (app and kiosk modes, not `--browser`) wraps Chromium in `systemd-inhibit --what=idle:sleep`. On X11 it also runs
-  `xset s off -dpms s noblank`; on GNOME it sets `idle-delay 0`. KDE/Wayland honors the inhibitor and Chromium's idle
-  inhibit.
+- Settings → **Keep the screen on** (default on). While it is on and the page is visible, the app holds a screen Wake
+  Lock (`navigator.wakeLock.request('screen')`), requested again on `visibilitychange`; turning it off releases it.
+- Chromium turns the Wake Lock into a desktop idle inhibitor (D-Bus screensaver/session inhibit on GNOME and KDE,
+  X11 and Wayland), so `scripts/start.sh` no longer changes system settings (`xset`, `gsettings`, `systemd-inhibit`):
+  the in-app setting alone decides, in every mode.
+- The Wake Lock needs a secure context (localhost or HTTPS); the plain HTML file and plain-HTTP hosting cannot keep
+  the screen on. Settings says so when it is not available.
 
 ## 11. Non-goals (for now)
 - multi-device sync

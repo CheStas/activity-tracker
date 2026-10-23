@@ -4,11 +4,14 @@ import {
   state, subscribe, addActivities, updateActivity, moveActivity, removeActivity, restoreActivity,
   setHiddenToday, canHideToday, activeSegment, setSetting, exportData, importData,
 } from '../state.js';
-import { $, esc, download, isoDay } from './util.js';
+import { $, esc, download, isoDay, fmtSwitch } from './util.js';
+import { icon } from './icons.js';
+
+const MIN_SWITCH = [0, 15, 30, 60, 120, 180, 300];
 
 export function mountSettings(root, { onBack, onDayEditor }) {
   root.innerHTML = `
-    <header class="bar"><button class="icon" data-back aria-label="Back">←</button><h1>Settings</h1></header>
+    <header class="bar"><button class="icon" data-back aria-label="Back">${icon('back')}</button><h1>Settings</h1></header>
     <div class="page">
       <section>
         <h2>Activities</h2>
@@ -29,7 +32,7 @@ export function mountSettings(root, { onBack, onDayEditor }) {
           <select id="theme"><option value="system">System</option><option value="dark">Dark</option><option value="light">Light</option></select>
         </label>
         <label class="row">Buttons
-          <select id="layout"><option value="rows">Rows (horizontal)</option><option value="tiles">Tiles (grid)</option></select>
+          <select id="layout"><option value="rows">Rows (horizontal)</option><option value="tiles">Tiles (grid)</option><option value="circles">Circles</option></select>
         </label>
       </section>
       <section>
@@ -37,9 +40,15 @@ export function mountSettings(root, { onBack, onDayEditor }) {
         <label class="row">Automatic reset at
           <select id="reset-hour">${Array.from({ length: 24 }, (_, h) => `<option value="${h}">${String(h).padStart(2, '0')}:00</option>`).join('')}</select>
         </label>
+        <label class="row">Minimum switch
+          <select id="min-switch">${MIN_SWITCH.map((s) => `<option value="${s}">${fmtSwitch(s)}</option>`).join('')}</select>
+          <span class="muted">shorter runs go to the next (or previous) activity</span>
+        </label>
         <label class="check"><input type="checkbox" id="popularity"> Size buttons by today's usage (unused ones go to a strip)</label>
         <label class="check"><input type="checkbox" id="auto-export"> Download a JSON backup when a day closes</label>
-        <label class="check"><input type="checkbox" id="start-fullscreen"> Start in full screen (on the first tap; ⛶ toggles, hold Esc to leave)</label>
+        <label class="check"><input type="checkbox" id="start-fullscreen"> Start in full screen (on the first tap; the full screen icon toggles, hold Esc to leave)</label>
+        <label class="check"><input type="checkbox" id="keep-awake"> Keep the screen on while the app is open
+          ${'wakeLock' in navigator ? '' : '<span class="muted">(not available here: needs localhost or HTTPS)</span>'}</label>
         <button data-day-editor>Edit today's timeline…</button>
       </section>
       <section>
@@ -64,6 +73,8 @@ export function mountSettings(root, { onBack, onDayEditor }) {
   $('#popularity', root).onchange = (e) => setSetting('popularity', e.target.checked);
   $('#auto-export', root).onchange = (e) => setSetting('autoExport', e.target.checked);
   $('#start-fullscreen', root).onchange = (e) => setSetting('startFullscreen', e.target.checked);
+  $('#keep-awake', root).onchange = (e) => setSetting('keepAwake', e.target.checked);
+  $('#min-switch', root).onchange = (e) => setSetting('minSwitchSec', Number(e.target.value));
   $('#theme', root).onchange = (e) => setSetting('theme', e.target.value);
   $('#layout', root).onchange = (e) => setSetting('layout', e.target.value);
 
@@ -149,6 +160,8 @@ function render(root) {
   $('#popularity', root).checked = state.settings.popularity;
   $('#auto-export', root).checked = state.settings.autoExport;
   $('#start-fullscreen', root).checked = state.settings.startFullscreen;
+  $('#keep-awake', root).checked = state.settings.keepAwake;
+  $('#min-switch', root).value = String(state.settings.minSwitchSec);
   $('#theme', root).value = state.settings.theme;
   $('#layout', root).value = state.settings.layout;
 }

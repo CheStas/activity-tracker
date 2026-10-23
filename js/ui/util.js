@@ -33,6 +33,12 @@ export const fmtClock = (ts) => {
   return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 
+/** Minimum switch option label: 0 -> "Off", 30 -> "30 s", 120 -> "2 min". */
+export const fmtSwitch = (s) => (s === 0 ? 'Off' : s < 60 ? `${s} s` : `${s / 60} min`);
+
+/** "Thu, Oct 22" */
+export const fmtDayShort = (ts) => new Date(ts).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+
 export const fmtDate = (ts) =>
   new Date(ts).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
 

@@ -2,6 +2,23 @@
 import { state, history, activityById } from '../state.js';
 import { totals, dayTotal, gaps, duration } from '../timeline.js';
 import { $, el, esc, fmtClock, fmtDate, fmtHM, targetText } from './util.js';
+import { icon } from './icons.js';
+
+/** Range shown for a day: first activity start to last activity end (or `now` while one runs). */
+export function activityRange(segments, now) {
+  return [Math.min(...segments.map((s) => s.start)), Math.max(...segments.map((s) => s.end ?? now))];
+}
+
+/** Segments and the idle gaps between them as one sorted list of {seg} / {gap} rows. */
+export function logRows(segments, now) {
+  return [
+    ...segments.map((s) => ({ t: s.start, seg: s })),
+    ...gaps(segments, now).map((g) => ({ t: g.start, gap: g })),
+  ].sort((a, b) => a.t - b.t);
+}
+
+export const gapRow = (gap) =>
+  `<li class="gap muted"><span>${fmtClock(gap.start)} – ${fmtClock(gap.end)}</span><span>idle ${fmtHM(gap.end - gap.start)}</span></li>`;
 
 /** Horizontal bar: one coloured block per segment, positioned within [from, to]. */
 export function timelineBar(from, to, segments, lookup) {
@@ -20,7 +37,7 @@ export function timelineBar(from, to, segments, lookup) {
 
 export function mountSummary(root, { onBack }) {
   root.innerHTML = `
-    <header class="bar"><button class="icon" data-back aria-label="Back">←</button><h1>Summary</h1></header>
+    <header class="bar"><button class="icon" data-back aria-label="Back">${icon('back')}</button><h1>Summary</h1></header>
     <div class="page" id="days"><p class="muted">Loading…</p></div>`;
   root.querySelector('[data-back]').onclick = onBack;
   return { show: () => render(root) };
@@ -48,8 +65,7 @@ function dayCard(day, segments, now, open) {
 
   const tot = totals(segments, end);
   const total = dayTotal(segments, end);
-  const first = Math.min(...segments.map((s) => s.start));
-  const last = Math.max(...segments.map((s) => s.end ?? end));
+  const [first, last] = activityRange(segments, end);
   const idle = gaps(segments, end).reduce((sum, g) => sum + g.end - g.start, 0);
   const rows = [...tot.entries()].sort((a, b) => b[1] - a[1]);
 
@@ -75,7 +91,8 @@ function dayCard(day, segments, now, open) {
         }).join('')}
       </table>
       <details class="sessions-detail"><summary>Sessions (${segments.length})</summary>
-        <ul class="sessions">${segments.map((s) => {
+        <ul class="sessions">${logRows(segments, end).map(({ seg: s, gap }) => {
+          if (gap) return gapRow(gap);
           const a = lookup(s.activityId);
           return `<li><span class="dot" style="--c:${a?.color ?? '#888'}"></span><span class="grow">${esc(a?.name ?? '?')}</span>
             <span>${fmtClock(s.start)} – ${s.end === null ? 'now' : fmtClock(s.end)}</span><span class="muted">${fmtHM(duration(s, end))}</span></li>`;

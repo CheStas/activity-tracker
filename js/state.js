@@ -1,13 +1,14 @@
 // App state: current day, its segments, activities and settings. All mutations go through here.
 import * as db from './db.js';
-import { assign, closeAt, totals, dayTotal, openSegment, uuid } from './timeline.js';
+import { assign, switchTo, closeAt, totals, dayTotal, openSegment, uuid } from './timeline.js';
 
 export const PALETTE = ['#4f8cff', '#f2994a', '#27ae60', '#bb6bd9', '#eb5757', '#2d9cdb', '#f2c94c', '#6fcf97', '#ff7eb6', '#9b8cff'];
 const SEED = ['break', 'meeting', 'task', 'pr review', 'communication', 'setup', 'prepare ticket'];
 const DEFAULT_SETTINGS = {
-  resetHour: 0, popularity: false, autoExport: false, startFullscreen: false,
+  resetHour: 0, popularity: false, autoExport: false, startFullscreen: false, keepAwake: true,
+  minSwitchSec: 60, // shorter runs are absorbed by a neighbour (0 = off)
   theme: 'system', // system | dark | light
-  layout: 'rows', // rows (horizontal) | tiles (grid)
+  layout: 'rows', // rows (horizontal) | tiles (grid) | circles
 };
 
 export const state = {
@@ -64,6 +65,8 @@ export const activeSegment = () => openSegment(state.segments);
 export const todayTotals = (now = Date.now()) => totals(state.segments, now);
 export const todayTotal = (now = Date.now()) => dayTotal(state.segments, now);
 export const activityById = (id) => state.activities.find((a) => a.id === id);
+/** Start of today's first activity, or null before anything is tracked. */
+export const firstStart = () => (state.segments.length ? Math.min(...state.segments.map((s) => s.start)) : null);
 
 export function canHideToday(id) {
   return !state.segments.some((s) => s.activityId === id);
@@ -99,11 +102,11 @@ function commit(segments) {
   emit('change');
 }
 
-/** Tap: switch to activity, or stop all if it is the active one. */
+/** Tap: switch to activity, or stop all if it is the active one. Runs under the minimum switch are absorbed. */
 export function tap(activityId, now = Date.now()) {
   const open = activeSegment();
   const target = open?.activityId === activityId ? null : activityId;
-  commit(assign(state.segments, target, now, null, opts()));
+  commit(switchTo(state.segments, target, now, state.settings.minSwitchSec * 1000, opts()));
 }
 
 /** assign(activityId|null, from, to|null) clamped to the current day and now. */

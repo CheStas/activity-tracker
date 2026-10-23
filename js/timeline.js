@@ -104,3 +104,23 @@ export function lastSwitch(segments, now) {
 
 /** Close everything at `at`: open segment ends there, anything later is dropped. */
 export const closeAt = (segments, at, opts) => assign(segments, null, at, null, opts);
+
+/**
+ * A tap at `now`: switch to activityId (null = stop all). A run shorter than minMs is not its own entry:
+ * a short activity goes to the next activity, or when stopping to the touching previous one (dropped if none);
+ * a short idle gap goes to the next activity.
+ */
+export function switchTo(segments, activityId, now, minMs, opts) {
+  const open = openSegment(segments);
+  if (open && now - open.start < minMs) {
+    if (activityId !== null) return assign(segments, activityId, open.start, null, opts);
+    const prev = segments.find((s) => s.end === open.start);
+    const closed = closeAt(segments, open.start, opts);
+    return prev ? assign(closed, prev.activityId, open.start, now, opts) : closed;
+  }
+  if (!open && activityId !== null) {
+    const lastEnd = Math.max(...segments.map((s) => s.end));
+    if (now - lastEnd < minMs) return assign(segments, activityId, lastEnd, null, opts);
+  }
+  return assign(segments, activityId, now, null, opts);
+}

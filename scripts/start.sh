@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 # Serve the app on localhost and open it in Chromium with a dedicated profile (same data in every mode).
 #
-#   start.sh            app window: title bar, resizable, closable; screen kept awake (default)
-#   start.sh --kiosk    locked full screen, no window controls; screen kept awake
-#   start.sh --browser  normal browser window with tabs; screen NOT kept awake
+#   start.sh            app window: title bar, resizable, closable (default)
+#   start.sh --kiosk    locked full screen, no window controls
+#   start.sh --browser  normal browser window with tabs
 #
-# The script (and the local server) exits when the window is closed, e.g. with the in-app ⏻ button.
+# The screen is kept on by the page itself (Settings → Keep the screen on, via the Wake Lock API).
+# The script (and the local server) exits when the window is closed, e.g. with the in-app close button.
 set -euo pipefail
 
 MODE="app"
@@ -41,22 +42,4 @@ case "$MODE" in
 esac
 mkdir -p "$PROFILE"
 
-if [ "$MODE" = "browser" ]; then
-  "${args[@]}"
-  exit 0
-fi
-
-# Keep the screen on. X11: xset; GNOME: gsettings; KDE/Wayland honours the inhibitor below
-# and Chromium's idle inhibit (Wake Lock API in the page).
-if [ "${XDG_SESSION_TYPE:-}" = "x11" ] && command -v xset >/dev/null; then
-  xset s off -dpms s noblank || true
-fi
-if [[ "${XDG_CURRENT_DESKTOP:-}" == *GNOME* ]] && command -v gsettings >/dev/null; then
-  gsettings set org.gnome.desktop.session idle-delay 0 || true
-fi
-
-if command -v systemd-inhibit >/dev/null; then
-  systemd-inhibit --what=idle:sleep --who="Activity Tracker" --why="Wall display" "${args[@]}"
-else
-  "${args[@]}"
-fi
+"${args[@]}"

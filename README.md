@@ -7,9 +7,9 @@ backdate a switch ("I actually started this at 14:30"). See [docs/SPEC.md](docs/
 
 ## Run
 ```sh
-scripts/start.sh             # app window (resizable, closable), screen kept awake — the main way to run it
+scripts/start.sh             # app window (resizable, closable) — the main way to run it
 scripts/start.sh --kiosk     # locked full screen, no window controls
-scripts/start.sh --browser   # normal browser window, screen not kept awake
+scripts/start.sh --browser   # normal browser window with tabs
 ```
 `start.sh` is a bash script: run it directly (or with `bash`), not with `node`. The npm shortcuts do the same:
 `npm start`, `npm run start:browser`, `npm run start:kiosk`, `npm run build:single`, `npm test`.
@@ -32,8 +32,11 @@ may be evicted.
 ## Use
 - **Tap** to switch the activity; **tap the active row** to stop all.
 - **Long-press** a row to see its sessions and to set "active since…" or "stop all since…".
-- Header icons: 📊 summary, ⚙️ settings, ⟲ reset day (archives the day), ⛶ full screen, ⏻ close.
-- **Settings → Appearance:** theme (System/Dark/Light) and button layout (Rows/Tiles).
+- Header icons: summary, settings, reset day (archives the day), full screen, close.
+- **Settings → Appearance:** theme (System/Dark/Light) and button layout (Rows/Tiles/Circles).
+- Switches shorter than a minute are not counted (the time goes to the next or previous activity); change the
+  threshold in **Settings → Day → Minimum switch**.
+- The screen stays on while the app is open; turn this off in **Settings → Day → Keep the screen on**.
 - **Esc** goes back (popup → screen → main). In full screen, hold Esc to leave full screen.
 
 ## Data

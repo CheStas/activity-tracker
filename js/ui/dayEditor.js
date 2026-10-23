@@ -1,14 +1,15 @@
 // Day editor: today's whole timeline; edit/delete any segment, add a range, or clear the day.
 import { state, subscribe, activityById, visibleActivities, assignRange, deleteSession, clearDay } from '../state.js';
-import { duration, gaps } from '../timeline.js';
-import { $, el, esc, fmtClock, fmtDur, fmtHM, openModal } from './util.js';
+import { duration } from '../timeline.js';
+import { $, el, esc, fmtClock, fmtDur, openModal } from './util.js';
 import { timePicker } from './timePicker.js';
 import { openSessionEditor } from './activityPopup.js';
-import { timelineBar } from './summary.js';
+import { timelineBar, activityRange, logRows, gapRow } from './summary.js';
+import { icon } from './icons.js';
 
 export function mountDayEditor(root, { onBack }) {
   root.innerHTML = `
-    <header class="bar"><button class="icon" data-back aria-label="Back">←</button><h1>Today's timeline</h1></header>
+    <header class="bar"><button class="icon" data-back aria-label="Back">${icon('back')}</button><h1>Today's timeline</h1></header>
     <div class="page">
       <div id="bar"></div>
       <ul class="sessions" id="segs"></ul>
@@ -36,17 +37,16 @@ export function mountDayEditor(root, { onBack }) {
 
 export function render(root) {
   const now = Date.now();
-  $('#bar', root).replaceChildren(timelineBar(state.day.startedAt, now, state.segments, activityById));
+  // The bar spans the activities only; idle shows up just between them.
+  const bar = state.segments.length ? [timelineBar(...activityRange(state.segments, now), state.segments, activityById)] : [];
+  $('#bar', root).replaceChildren(...bar);
 
-  const rows = [
-    ...state.segments.map((s) => ({ t: s.start, seg: s })),
-    ...gaps(state.segments, now).map((g) => ({ t: g.start, gap: g })),
-  ].sort((a, b) => a.t - b.t);
+  const rows = logRows(state.segments, now);
 
   $('#segs', root).innerHTML = rows.length
     ? rows
         .map(({ seg, gap }) => {
-          if (gap) return `<li class="gap muted"><span>${fmtClock(gap.start)} – ${fmtClock(gap.end)}</span><span>idle ${fmtHM(gap.end - gap.start)}</span></li>`;
+          if (gap) return gapRow(gap);
           const a = activityById(seg.activityId);
           return `
             <li data-seg="${seg.id}">

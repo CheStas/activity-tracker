@@ -1,7 +1,8 @@
 // Main screen: header with live totals and the activity button grid.
-import { state, subscribe, tap, visibleActivities, activeSegment, todayTotals, todayTotal, activityById } from '../state.js';
+import { state, subscribe, tap, visibleActivities, activeSegment, todayTotals, todayTotal, activityById, firstStart } from '../state.js';
 import { lastSwitch } from '../timeline.js';
-import { $, el, esc, fmtDur, fmtClock, targetText } from './util.js';
+import { $, esc, fmtDur, fmtClock, fmtDayShort, targetText } from './util.js';
+import { icon } from './icons.js';
 import { openActivityPopup } from './activityPopup.js';
 
 const LONG_PRESS_MS = 600;
@@ -9,16 +10,16 @@ const LONG_PRESS_MS = 600;
 export function mountMain(root, { onSettings, onSummary, onReset, onFullscreen, onQuit }) {
   root.innerHTML = `
     <header class="bar">
-      <div class="stat"><span class="k">Today</span><span class="v"><span id="day-total">0:00</span> <small id="day-start"></small></span></div>
-      <div class="stat grow"><span class="k" id="current-label">Idle</span><span class="v" id="current-run">–</span></div>
-      <div class="stat"><span class="k">Since switch</span><span class="v" id="since-switch">–</span></div>
+      <div class="stat"><span class="k">Today · <span id="today-date"></span></span><span class="v"><span id="day-total">0:00</span> <small id="day-start"></small></span></div>
+      <div class="stat grow"><span class="k" id="current-label">Now</span><span class="v" id="current-run">Idle</span></div>
+      <div class="stat" id="since-switch-stat"><span class="k">Since switch</span><span class="v" id="since-switch">–</span></div>
       <div class="stat"><span class="k">Clock</span><span class="v" id="clock"></span></div>
       <nav class="icons">
-        <button class="icon" id="btn-summary" aria-label="Summary">📊</button>
-        <button class="icon" id="btn-settings" aria-label="Settings">⚙️</button>
-        <button class="icon" id="btn-reset" aria-label="Reset day">⟲</button>
-        <button class="icon" id="btn-fullscreen" aria-label="Toggle full screen">⛶</button>
-        <button class="icon" id="btn-quit" aria-label="Close app">⏻</button>
+        <button class="icon" id="btn-summary" aria-label="Summary" title="Summary">${icon('summary')}</button>
+        <button class="icon" id="btn-settings" aria-label="Settings" title="Settings">${icon('settings')}</button>
+        <button class="icon" id="btn-reset" aria-label="Reset day" title="Reset day">${icon('reset')}</button>
+        <button class="icon" id="btn-fullscreen" aria-label="Toggle full screen" title="Full screen">${icon('maximize')}</button>
+        <button class="icon" id="btn-quit" aria-label="Close app" title="Close app">${icon('power')}</button>
       </nav>
     </header>
     <main class="grid" id="grid"></main>
@@ -29,6 +30,9 @@ export function mountMain(root, { onSettings, onSummary, onReset, onFullscreen, 
   $('#btn-reset', root).onclick = onReset;
   $('#btn-fullscreen', root).onclick = onFullscreen;
   $('#btn-quit', root).onclick = onQuit;
+  document.addEventListener('fullscreenchange', () => {
+    $('#btn-fullscreen', root).innerHTML = icon(document.fullscreenElement ? 'minimize' : 'maximize');
+  });
 
   bindPresses($('#grid', root));
   bindPresses($('#strip', root));
@@ -108,8 +112,14 @@ function render(root) {
   strip.innerHTML = rest
     .map((a) => `<button class="chip" data-id="${a.id}" style="--c:${a.color}">${esc(a.name)}</button>`)
     .join('');
+  // Nothing tracked yet today: a welcome hint, and the buttons centered on the screen (see CSS .fresh).
+  const fresh = state.segments.length === 0;
+  root.classList.toggle('fresh', fresh);
   if (main.length === 0 && rest.length === 0) {
-    grid.innerHTML = `<p class="empty">No activities. Add some in ⚙️ Settings.</p>`;
+    grid.innerHTML = `<p class="empty">No activities. Add some in Settings.</p>`;
+  } else if (fresh) {
+    grid.insertAdjacentHTML('afterbegin', `<div class="hint"><strong>Ready to start the day</strong>
+      <span>Tap an activity to start tracking · hold one to set an earlier start</span></div>`);
   }
   tick(root);
 }
@@ -120,18 +130,22 @@ export function tick(root) {
   const totals = todayTotals(now);
   const open = activeSegment();
 
+  const first = firstStart();
+  $('#today-date', root).textContent = fmtDayShort(now);
   $('#day-total', root).textContent = fmtDur(todayTotal(now));
-  $('#day-start', root).textContent = `since ${fmtClock(state.day.startedAt)}`;
+  $('#day-start', root).textContent = first === null ? '' : `since ${fmtClock(first)}`;
   $('#clock', root).textContent = fmtClock(now);
-  const sw = lastSwitch(state.segments, now);
-  $('#since-switch', root).textContent = sw === null ? '–' : fmtDur(now - sw);
+  // While idle the header just says "Idle": no idle duration, no time since the switch.
+  $('#since-switch-stat', root).hidden = !open;
+  $('#current-run', root).classList.toggle('muted', !open);
   if (open) {
     const a = activityById(open.activityId);
     $('#current-label', root).textContent = a?.name ?? 'Active';
     $('#current-run', root).textContent = fmtDur(now - open.start);
+    $('#since-switch', root).textContent = fmtDur(now - lastSwitch(state.segments, now));
   } else {
-    $('#current-label', root).textContent = 'Idle';
-    $('#current-run', root).textContent = sw === null ? '–' : fmtDur(now - sw);
+    $('#current-label', root).textContent = 'Now';
+    $('#current-run', root).textContent = 'Idle';
   }
 
   for (const node of root.querySelectorAll('[data-total]')) {
