@@ -1,8 +1,9 @@
 // Pure timeline logic: no DOM, no storage. Works in the browser and in Node.
 // A segment is {id, dayId, activityId, start, end|null}; end === null means open (active).
+import type { Segment } from './types.ts';
 
 /** randomUUID only exists in secure contexts (https/localhost); fall back to getRandomValues elsewhere. */
-export function uuid() {
+export function uuid(): string {
   const c = globalThis.crypto;
   if (c.randomUUID) return c.randomUUID();
   const b = c.getRandomValues(new Uint8Array(16));
@@ -14,18 +15,29 @@ export function uuid() {
 
 const defaultId = uuid;
 
-const endOf = (s) => (s.end === null ? Infinity : s.end);
+const endOf = (s: Segment) => (s.end === null ? Infinity : s.end);
 
 /**
  * Carve [from, to) out of the segments and optionally fill it with activityId.
  * to === null means "from onward" (open-ended): the result has an open segment iff activityId is set.
  * Returns a new sorted array; the input is not mutated.
  */
-export function assign(segments, activityId, from, to, { dayId = null, genId = defaultId } = {}) {
+export interface AssignOpts {
+  dayId?: string | null;
+  genId?: () => string;
+}
+
+export function assign(
+  segments: Segment[],
+  activityId: string | null | undefined,
+  from: number,
+  to: number | null,
+  { dayId = null, genId = defaultId }: AssignOpts = {},
+): Segment[] {
   const rangeEnd = to === null ? Infinity : to;
   if (rangeEnd <= from) return normalize(segments.map((s) => ({ ...s })));
 
-  const out = [];
+  const out: Segment[] = [];
   for (const seg of segments) {
     const s = { ...seg };
     const sEnd = endOf(s);
@@ -50,11 +62,11 @@ export function assign(segments, activityId, from, to, { dayId = null, genId = d
 }
 
 /** Sort and merge touching segments of the same activity. */
-export function normalize(segments) {
+export function normalize(segments: Segment[]): Segment[] {
   const sorted = segments
     .filter((s) => s.end === null || s.end > s.start)
     .sort((a, b) => a.start - b.start);
-  const out = [];
+  const out: Segment[] = [];
   for (const s of sorted) {
     const prev = out[out.length - 1];
     if (prev && prev.activityId === s.activityId && prev.end !== null && prev.end === s.start) {
@@ -66,24 +78,29 @@ export function normalize(segments) {
   return out;
 }
 
-export const duration = (s, now) => (s.end ?? now) - s.start;
+export const duration = (s: Segment, now: number) => (s.end ?? now) - s.start;
 
-export const openSegment = (segments) => segments.find((s) => s.end === null) ?? null;
+export const openSegment = (segments: Segment[]) => segments.find((s) => s.end === null) ?? null;
 
 /** Map activityId -> total ms. */
-export function totals(segments, now) {
-  const map = new Map();
+export function totals(segments: Segment[], now: number): Map<string, number> {
+  const map = new Map<string, number>();
   for (const s of segments) map.set(s.activityId, (map.get(s.activityId) ?? 0) + duration(s, now));
   return map;
 }
 
-export const dayTotal = (segments, now) => segments.reduce((sum, s) => sum + duration(s, now), 0);
+export const dayTotal = (segments: Segment[], now: number) => segments.reduce((sum, s) => sum + duration(s, now), 0);
 
-export const sessionsFor = (segments, activityId) => segments.filter((s) => s.activityId === activityId);
+export const sessionsFor = (segments: Segment[], activityId: string) => segments.filter((s) => s.activityId === activityId);
 
 /** Untracked gaps between the first start and the last end (or now). */
-export function gaps(segments, now) {
-  const out = [];
+export interface Gap {
+  start: number;
+  end: number;
+}
+
+export function gaps(segments: Segment[], now: number): Gap[] {
+  const out: Gap[] = [];
   const sorted = [...segments].sort((a, b) => a.start - b.start);
   for (let i = 1; i < sorted.length; i++) {
     const prevEnd = sorted[i - 1].end ?? now;
@@ -93,8 +110,8 @@ export function gaps(segments, now) {
 }
 
 /** Timestamp of the most recent switch (any segment start or end not in the future). */
-export function lastSwitch(segments, now) {
-  let t = null;
+export function lastSwitch(segments: Segment[], now: number): number | null {
+  let t: number | null = null;
   for (const s of segments) {
     if (s.start <= now) t = Math.max(t ?? -Infinity, s.start);
     if (s.end !== null && s.end <= now) t = Math.max(t ?? -Infinity, s.end);
@@ -103,14 +120,14 @@ export function lastSwitch(segments, now) {
 }
 
 /** Close everything at `at`: open segment ends there, anything later is dropped. */
-export const closeAt = (segments, at, opts) => assign(segments, null, at, null, opts);
+export const closeAt = (segments: Segment[], at: number, opts?: AssignOpts) => assign(segments, null, at, null, opts);
 
 /**
  * A tap at `now`: switch to activityId (null = stop all). A run shorter than minMs is not its own entry:
  * a short activity goes to the next activity, or when stopping to the touching previous one (dropped if none);
  * a short idle gap goes to the next activity.
  */
-export function switchTo(segments, activityId, now, minMs, opts) {
+export function switchTo(segments: Segment[], activityId: string | null, now: number, minMs: number, opts?: AssignOpts) {
   const open = openSegment(segments);
   if (open && now - open.start < minMs) {
     if (activityId !== null) return assign(segments, activityId, open.start, null, opts);
@@ -119,7 +136,7 @@ export function switchTo(segments, activityId, now, minMs, opts) {
     return prev ? assign(closed, prev.activityId, open.start, now, opts) : closed;
   }
   if (!open && activityId !== null) {
-    const lastEnd = Math.max(...segments.map((s) => s.end));
+    const lastEnd = Math.max(...segments.map((s) => s.end ?? now));
     if (now - lastEnd < minMs) return assign(segments, activityId, lastEnd, null, opts);
   }
   return assign(segments, activityId, now, null, opts);

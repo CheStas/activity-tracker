@@ -2,10 +2,25 @@
   "type": "module",
   "private": true,
   "scripts": {
+    "dev": "vite",
+    "build": "npm run typecheck && vite build",
+    "build:single": "vite build --mode single && mv dist-single/index.html dist-single/activity-tracker.html",
+    "preview": "vite preview",
+    "typecheck": "tsc",
+    "test": "vitest run",
     "start": "scripts/start.sh",
     "start:browser": "scripts/start.sh --browser",
-    "start:kiosk": "scripts/start.sh --kiosk",
-    "build:single": "node scripts/build-single.mjs",
-    "test": "node --test"
+    "start:kiosk": "scripts/start.sh --kiosk"
+  },
+  "dependencies": {
+    "preact": "^11.0.2"
+  },
+  "devDependencies": {
+    "@preact/preset-vite": "^2.10.6",
+    "@types/node": "^26.6.5",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5",
+    "vite-plugin-singlefile": "^2.3.4",
+    "vitest": "^5.0.5"
   }
 }

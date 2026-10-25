@@ -1,16 +1,17 @@
-import { test } from 'node:test';
+import { test } from 'vitest';
 import assert from 'node:assert/strict';
-import { assign, totals, dayTotal, gaps, lastSwitch, sessionsFor, closeAt, switchTo } from '../js/timeline.js';
+import { assign, totals, dayTotal, gaps, lastSwitch, sessionsFor, closeAt, switchTo } from '../src/timeline.ts';
+import type { Segment } from '../src/types.ts';
 
-const T = (hhmm) => {
+const T = (hhmm: string) => {
   const [h, m] = hhmm.split(':').map(Number);
   return (h * 60 + m) * 60_000;
 };
 const MIN = 60_000;
 let n = 0;
 const opts = { dayId: 'd1', genId: () => `id${++n}` };
-const tap = (segs, act, at) => assign(segs, act, T(at), null, opts);
-const view = (segs) => segs.map((s) => [s.activityId, s.start / MIN, s.end === null ? null : s.end / MIN]);
+const tap = (segs: Segment[], act: string, at: string) => assign(segs, act, T(at), null, opts);
+const view = (segs: Segment[]) => segs.map((s) => [s.activityId, s.start / MIN, s.end === null ? null : s.end / MIN]);
 
 test('spec example: backdate A2 since 14:30 trims A1', () => {
   let s = tap([], 'A1', '14:10');
@@ -95,7 +96,7 @@ test('lastSwitch reports the latest start or end', () => {
 });
 
 const SEC = 1000;
-const sw = (segs, act, at, extraSec = 0) => switchTo(segs, act, T(at) + extraSec * SEC, MIN, opts);
+const sw = (segs: Segment[], act: string | null, at: string, extraSec = 0) => switchTo(segs, act, T(at) + extraSec * SEC, MIN, opts);
 
 test('short switch goes to the next activity', () => {
   let s = sw([], 'A', '09:00');

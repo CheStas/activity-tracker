@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Serve the app on localhost and open it in Chromium with a dedicated profile (same data in every mode).
+# Build the app if needed, serve dist/ on localhost and open it in Chromium with a dedicated profile (same data in every mode).
 #
 #   start.sh            app window: title bar, resizable, closable (default)
 #   start.sh --kiosk    locked full screen, no window controls
@@ -26,9 +26,22 @@ PROFILE="${PROFILE:-$HOME/.local/share/activity-tracker/chromium}"
 BROWSER="${BROWSER:-$(command -v chromium-browser || command -v chromium || command -v google-chrome || true)}"
 [ -n "$BROWSER" ] || { echo "No Chromium/Chrome found; set BROWSER=..." >&2; exit 1; }
 
+# Build dist/ when it is missing or older than the sources. Without npm, serve whatever build exists.
+DIST="$APP_DIR/dist"
+if [ ! -f "$DIST/index.html" ] || [ -n "$(find "$APP_DIR/src" "$APP_DIR/index.html" "$APP_DIR/package.json" "$APP_DIR/vite.config.ts" -newer "$DIST/index.html" -print -quit)" ]; then
+  if command -v npm >/dev/null; then
+    (cd "$APP_DIR" && { [ -d node_modules ] || npm ci; } && npm run build)
+  elif [ -f "$DIST/index.html" ]; then
+    echo "npm not found; serving the existing (outdated) build" >&2
+  else
+    echo "No build in $DIST and npm not found; run 'npm install && npm run build' first" >&2
+    exit 1
+  fi
+fi
+
 # Static server (reuse one that is already running on the port).
 if ! curl -fsS -o /dev/null "$URL" 2>/dev/null; then
-  python3 -m http.server "$PORT" --bind 127.0.0.1 --directory "$APP_DIR" >/dev/null 2>&1 &
+  python3 -m http.server "$PORT" --bind 127.0.0.1 --directory "$DIST" >/dev/null 2>&1 &
   SERVER_PID=$!
   trap 'kill $SERVER_PID 2>/dev/null || true' EXIT
   for _ in $(seq 20); do curl -fsS -o /dev/null "$URL" 2>/dev/null && break; sleep 0.2; done

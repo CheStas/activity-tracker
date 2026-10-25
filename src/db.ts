@@ -1,10 +1,21 @@
 // Thin IndexedDB wrapper. Stores: activities, days, segments (index dayId), settings (key/value).
+import type { Activity, Day, Segment } from './types.ts';
 
 const DB_NAME = 'activity-tracker';
 const VERSION = 1;
-export const STORES = ['activities', 'days', 'segments', 'settings'];
+export const STORES = ['activities', 'days', 'segments', 'settings'] as const;
 
-let dbPromise = null;
+interface Records {
+  activities: Activity;
+  days: Day;
+  segments: Segment;
+  settings: { key: string; value: unknown };
+}
+type Store = keyof Records;
+
+export type Export = { app: string; version: number; exportedAt: number } & { [S in Store]: Records[S][] };
+
+let dbPromise: Promise<IDBDatabase> | null = null;
 
 function open() {
   dbPromise ??= new Promise((resolve, reject) => {
@@ -22,44 +33,44 @@ function open() {
   return dbPromise;
 }
 
-const done = (tx) =>
-  new Promise((resolve, reject) => {
+const done = (tx: IDBTransaction) =>
+  new Promise<void>((resolve, reject) => {
     tx.oncomplete = () => resolve();
     tx.onerror = tx.onabort = () => reject(tx.error);
   });
 
-const result = (req) =>
-  new Promise((resolve, reject) => {
+const result = <T>(req: IDBRequest<T>) =>
+  new Promise<T>((resolve, reject) => {
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
   });
 
-export async function getAll(store) {
+export async function getAll<S extends Store>(store: S): Promise<Records[S][]> {
   const db = await open();
   return result(db.transaction(store).objectStore(store).getAll());
 }
 
-export async function put(store, ...values) {
+export async function put<S extends Store>(store: S, ...values: Records[S][]) {
   const db = await open();
   const tx = db.transaction(store, 'readwrite');
   for (const v of values) tx.objectStore(store).put(v);
   return done(tx);
 }
 
-export async function del(store, key) {
+export async function del(store: Store, key: string) {
   const db = await open();
   const tx = db.transaction(store, 'readwrite');
   tx.objectStore(store).delete(key);
   return done(tx);
 }
 
-export async function segmentsOfDay(dayId) {
+export async function segmentsOfDay(dayId: string): Promise<Segment[]> {
   const db = await open();
   return result(db.transaction('segments').objectStore('segments').index('dayId').getAll(dayId));
 }
 
 /** Replace all segments of a day atomically. */
-export async function replaceDaySegments(dayId, segments) {
+export async function replaceDaySegments(dayId: string, segments: Segment[]) {
   const db = await open();
   const tx = db.transaction('segments', 'readwrite');
   const store = tx.objectStore('segments');
@@ -69,21 +80,21 @@ export async function replaceDaySegments(dayId, segments) {
   return done(tx);
 }
 
-export async function getSetting(key, fallback) {
+export async function getSetting<T>(key: string, fallback: T): Promise<T> {
   const db = await open();
-  const row = await result(db.transaction('settings').objectStore('settings').get(key));
-  return row ? row.value : fallback;
+  const row: Records['settings'] | undefined = await result(db.transaction('settings').objectStore('settings').get(key));
+  return row ? (row.value as T) : fallback;
 }
 
-export const setSetting = (key, value) => put('settings', { key, value });
+export const setSetting = (key: string, value: unknown) => put('settings', { key, value });
 
-export async function exportAll() {
-  const out = { app: DB_NAME, version: VERSION, exportedAt: Date.now() };
-  for (const s of STORES) out[s] = await getAll(s);
+export async function exportAll(): Promise<Export> {
+  const out = { app: DB_NAME, version: VERSION, exportedAt: Date.now() } as Export;
+  for (const s of STORES) (out[s] as unknown[]) = await getAll(s);
   return out;
 }
 
-export async function importAll(data) {
+export async function importAll(data: Partial<Export> | null) {
   if (data?.app !== DB_NAME) throw new Error('Not an activity-tracker export');
   const db = await open();
   const tx = db.transaction(STORES, 'readwrite');
