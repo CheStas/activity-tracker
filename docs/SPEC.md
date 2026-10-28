@@ -29,9 +29,16 @@ A full-screen web app for a Linux PC/laptop with a touchscreen. It works like a 
   the code.
 - The list is configured in Settings. You can add one or more names at once (comma- or newline-separated), rename, recolor
   and reorder activities, and set an optional daily target in minutes.
+- **Names are unique** within a profile, compared trimmed and case-insensitive ("Task" = " task "). Adding or renaming
+  to a name that a live or removed activity already has is refused with a message (a removed one can be restored or
+  deleted instead). Existing duplicates from earlier versions are left as they are.
 - **Removing** an activity is a soft delete (`archived: true`). Its data is **never** deleted:
   - past days and summaries still show its time, with the label "(removed)"
-  - a "Removed activities" section in Settings lets you restore it
+  - a "Removed activities" section in Settings lets you restore it, or **delete** it from that list
+- **Deleting** a removed activity (`deleted: true`) takes it off the "Removed activities" list for good: no restore
+  button. The record is kept, so its tracked time still shows in the summary. Adding an activity with the same name
+  later brings that record back as a fresh button (no group, no target, at the end of the list, color kept), so the
+  old history and the new time are one activity: summary and history show no difference.
 - **Hide for today:** a per-activity toggle in Settings.
   - It can only be used when the activity has **no time recorded in the current day** and is not active.
   - It stores `hiddenForDayId = <current day id>`. The button reappears automatically on the next day (after a manual
@@ -98,9 +105,10 @@ from 09:00, no meeting entry. Backdating from the popup and the day editor is no
   - icon buttons in one matching style (line icons in a shared rounded group): Profiles (only with more than one
     profile, §12), Summary, Settings, Reset day, Full screen toggle (the icon reflects the state), Close app
 - **Layout** (Settings → Appearance → Buttons): **Rows** (default, described next), **Tiles**: a grid of vertical
-  tiles (name, total, run, target stacked) stretched to fill the screen, or **Circles**: round buttons (same
-  content, stacked) wrapped and centered on the screen. With popularity sizing on, tiles span 1–3 grid cells and
-  circles grow up to about 1.6× in diameter.
+  tiles: one full-height column per activity, side by side (the opposite of Rows; name, total, run, target
+  stacked), scrolling sideways when they do not fit, or **Circles**: round buttons (same
+  content, stacked) wrapped and centered on the screen. With popularity sizing on, columns get 1–3× the width (never a
+  different height, so nothing wraps into a second row) and circles grow up to about 1.6× in diameter.
 - **Empty day** (nothing tracked yet today): a short welcome hint ("Tap an activity to start the day · hold one to
   set an earlier start") and the buttons centered vertically on the screen.
 - **Theme** (Settings → Appearance → Theme): System (follows the OS) / Dark / Light. The last choice is also mirrored
@@ -111,8 +119,13 @@ from 09:00, no meeting entry. Backdating from the popup and the day editor is no
   set, the row shows "x left" or "x over".
 - **Tap:** switch activity, or stop if the button is already active.
 - **Long-press (600 ms):** opens the activity popup (§7).
-- **Popularity sizing** (Settings toggle, **off** by default): row height follows today's share of time. Activities
-  not used yet today move to a small strip at the bottom.
+- **Popularity sizing** (Settings toggle, **off** by default): row height (column width, circle size) follows today's
+  share of time.
+- **Unused to a strip** (separate Settings toggle, **off** by default): activities not used yet today move to a small
+  strip of chips at the bottom; they work like the buttons (tap, long-press). It works with or without popularity
+  sizing, so the buttons can be all equal with the unused ones in the strip. Profiles saved before this setting
+  existed (and backup files without it) get it **on exactly when popularity sizing was on**, which kept the old
+  behaviour.
 
 ### 6.1 Navigation, full screen, closing
 - **Esc = back**, following a fixed hierarchy with no loops: open popup → closes it; Day editor → Settings; Settings
@@ -135,7 +148,8 @@ from 09:00, no meeting entry. Backdating from the popup and the day editor is no
 The settings screen shows the open profile's name in its title.
 - Profiles: open (switch to), rename, add, delete (§12)
 - Groups: add, rename, on/off, reorder, delete (§13)
-- Activities: add, rename, color, group, daily target, reorder, hide for today, remove (soft), restore removed
+- Activities: add, rename (names unique, §3), color, group, daily target, reorder, hide for today, remove (soft),
+  restore removed, delete removed from the list
 - Appearance: theme (System/Dark/Light), button layout (Rows/Tiles/Circles)
 - Minimum switch: Off / 15 s / 30 s / 1 min (default) / 2 min / 3 min / 5 min (§4.2)
 - **Every setting below belongs to the open profile** (§12), appearance included.
@@ -143,6 +157,7 @@ The settings screen shows the open profile's name in its title.
 - Start in full screen (toggle)
 - Keep the screen on (toggle, **on** by default; §10)
 - Popularity sizing toggle
+- Unused activities to a strip toggle (§6)
 - Auto-export a JSON file when a day closes (toggle)
 - Export the open profile to JSON, import JSON into the open profile (replaces that profile's data and settings,
   after a confirmation; other profiles are untouched)
@@ -157,7 +172,8 @@ For the current day and every archived day **of the open profile**:
   activity is never idle)
 - per activity: total, percentage, and target delta
 - per group (when the profile has groups): total of its activities, plus "no group"
-- a horizontal timeline bar over the same range, and the session list with idle rows for the gaps between activities
+- a horizontal timeline bar over the same range, one colored block per session with its duration inside ("1h 05m",
+  "12m"; hidden when the block is too narrow; the day editor's bar shows the same), and the session list with idle rows for the gaps between activities
 
 ## 10. Keeping the screen awake
 - Settings → **Keep the screen on** (default on). While it is on and the page is visible, the app holds a screen Wake
@@ -171,7 +187,7 @@ For the current day and every archived day **of the open profile**:
 ## 12. Profiles
 A profile is a separate workspace, like a separate copy of the app: its own activities, groups, days, segments,
 summary, backup file and **all settings** (theme, button layout, full screen, keep the screen on, reset hour, minimum
-switch, popularity sizing, auto-export).
+switch, popularity sizing, unused strip, auto-export).
 - **Exactly one profile is open** at a time. The open profile is remembered across restarts.
 - **Switching** (header Profiles button, or Settings → Profiles → Open) loads the other profile. Nothing is stopped:
   a running activity in the profile you leave keeps counting, exactly as when the app is closed, and that profile's
@@ -209,7 +225,7 @@ in the single-file build); `scripts/start.sh` rebuilds when it changes. It is ap
 database); after that everything is edited in Settings.
 - `palette`: colors given to new activities in turn
 - `settings`: the settings of every seeded profile (`theme`, `layout`, `startFullscreen`, `keepAwake`,
-  `resetHour`, `minSwitchSec`, `popularity`, `autoExport`); a profile may override some with its own `settings`
+  `resetHour`, `minSwitchSec`, `popularity`, `unusedStrip`, `autoExport`); a profile may override some with its own `settings`
 - `profiles`: the profiles to create, the first one is opened. Each has a `name`, optional `settings`, optional
   `groups` (`name`, `on` (default true), `activities`) and optional ungrouped `activities`. An activity is a name, or
   an object `{ "name", "color"?, "targetMin"? }`.

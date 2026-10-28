@@ -1,7 +1,7 @@
 // Settings screen: profiles, groups, activities (add, rename, color, group, target, reorder, hide for today,
-// remove/restore), appearance, per-profile day settings, export/import.
+// remove/restore/delete), appearance, per-profile day settings, export/import.
 import {
-  addActivities, updateActivity, moveActivity, removeActivity, restoreActivity,
+  addActivities, updateActivity, renameActivity, moveActivity, removeActivity, restoreActivity, deleteActivity,
   setHiddenToday, canHideToday, activeSegment, setSetting, exportData, importData,
   addGroups, updateGroup, moveGroup, removeGroup, addProfile, renameProfile, removeProfile, switchProfile,
 } from '../state.ts';
@@ -18,7 +18,7 @@ export function Settings({ onBack, onDayEditor }: { onBack: () => void; onDayEdi
   const state = useAppState();
   const s = state.profile.settings;
   const live = state.activities.filter((a) => !a.archived);
-  const removed = state.activities.filter((a) => a.archived);
+  const removed = state.activities.filter((a) => a.archived && !a.deleted);
 
   /** Submit handler for a one-field form: passes the trimmed field value, then clears the form. */
   const onAdd = (fn: (text: string) => void) => (e: SubmitEvent) => {
@@ -80,7 +80,10 @@ export function Settings({ onBack, onDayEditor }: { onBack: () => void; onDayEdi
           <ul class="act-list">
             {live.map((a, i) => <ActivityRow key={a.id} a={a} first={i === 0} last={i === live.length - 1} />)}
           </ul>
-          <form class="row" onSubmit={onAdd(addActivities)}>
+          <form class="row" onSubmit={onAdd((text) => {
+            const taken = addActivities(text);
+            if (taken.length) alert(`Already exists (names are unique; a removed one can be restored or deleted below): ${taken.join(', ')}`);
+          })}>
             <textarea name="names" rows={2} placeholder="Add activities: one per line or comma-separated" />
             <button class="primary">Add</button>
           </form>
@@ -88,12 +91,18 @@ export function Settings({ onBack, onDayEditor }: { onBack: () => void; onDayEdi
         {removed.length > 0 && (
           <section>
             <h2>Removed activities</h2>
-            <p class="muted">Removed activities keep their history; restore them any time.</p>
+            <p class="muted">
+              Removed activities keep their history; restore them any time. Delete takes one off this list, and its
+              tracked time stays in the summary. Adding an activity with the same name later continues that history.
+            </p>
             <ul class="act-list">
               {removed.map((a) => (
                 <li key={a.id}>
                   <span class="dot" style={{ '--c': a.color }} /><span class="grow">{a.name}</span>
                   <button onClick={() => restoreActivity(a.id)}>Restore</button>
+                  <button class="danger" onClick={() => {
+                    if (confirm(`Delete "${a.name}" from this list? Its tracked time stays in the summary.`)) deleteActivity(a.id);
+                  }}>Delete</button>
                 </li>
               ))}
             </ul>
@@ -126,7 +135,10 @@ export function Settings({ onBack, onDayEditor }: { onBack: () => void; onDayEdi
             <span class="muted">shorter runs go to the next (or previous) activity</span>
           </label>
           <Check checked={s.popularity} onChange={(v) => setSetting('popularity', v)}>
-            Size buttons by today's usage (unused ones go to a strip)
+            Size buttons by today's usage
+          </Check>
+          <Check checked={s.unusedStrip} onChange={(v) => setSetting('unusedStrip', v)}>
+            Move activities not used today to a small strip at the bottom
           </Check>
           <Check checked={s.autoExport} onChange={(v) => setSetting('autoExport', v)}>
             Download a JSON backup when a day closes
@@ -223,8 +235,13 @@ function ActivityRow({ a, first, last }: { a: Activity; first: boolean; last: bo
       <input
         key={`name:${a.name}`} type="text" defaultValue={a.name} aria-label="Name"
         onChange={(e) => {
-          const name = e.currentTarget.value.trim();
-          if (name) updateActivity(a.id, { name });
+          const input = e.currentTarget;
+          const name = input.value.trim();
+          if (!name || name === a.name) return void (input.value = a.name);
+          if (!renameActivity(a.id, name)) {
+            alert(`An activity named "${name}" already exists.`);
+            input.value = a.name;
+          }
         }}
       />
       {state.groups.length > 0 && (

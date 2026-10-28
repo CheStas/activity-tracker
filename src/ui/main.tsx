@@ -32,8 +32,8 @@ export function Main({ onProfiles, onSettings, onSummary, onReset, onFullscreen,
 
   let main = visibleActivities();
   let rest: Activity[] = [];
-  const popularity = state.profile.settings.popularity;
-  if (popularity) {
+  const { popularity, unusedStrip } = state.profile.settings;
+  if (unusedStrip) {
     rest = main.filter((a) => !totals.has(a.id));
     main = main.filter((a) => totals.has(a.id));
   }
@@ -78,23 +78,28 @@ export function Main({ onProfiles, onSettings, onSummary, onReset, onFullscreen,
               <span>Tap an activity to start tracking · hold one to set an earlier start</span>
             </div>
           )}
-          {main.map((a) => {
-            const total = totals.get(a.id) ?? 0;
-            const size = popularity ? sizeFor(total / (dayMs || 1)) : 1;
-            const active = open?.activityId === a.id;
-            const target = targetText(a.targetMin, total);
-            return (
-              <button
-                key={a.id} data-id={a.id} style={{ '--c': a.color, '--span': size }}
-                class={`act${active ? ' active' : ''}${pressed === a.id ? ' pressing' : ''}`}
-              >
-                <span class="name">{a.name}</span>
-                <span class={`target${target.endsWith('over') ? ' over' : ''}`}>{target}</span>
-                <span class="total">{fmtDur(total)}</span>
-                <span class="run">{active && open ? `▶ ${fmtDur(now - open.start)}` : ''}</span>
-              </button>
-            );
-          })}
+          {/* Rows and circles lay the buttons out in .grid itself (.acts is display: contents); tiles use .acts as a row of columns. */}
+          {main.length > 0 && (
+            <div class="acts">
+              {main.map((a) => {
+                const total = totals.get(a.id) ?? 0;
+                const size = popularity ? sizeFor(total / (dayMs || 1)) : 1;
+                const active = open?.activityId === a.id;
+                const target = targetText(a.targetMin, total);
+                return (
+                  <button
+                    key={a.id} data-id={a.id} style={{ '--c': a.color, '--span': size }}
+                    class={`act${active ? ' active' : ''}${pressed === a.id ? ' pressing' : ''}`}
+                  >
+                    <span class="name">{a.name}</span>
+                    <span class={`target${target.endsWith('over') ? ' over' : ''}`}>{target}</span>
+                    <span class="total">{fmtDur(total)}</span>
+                    <span class="run">{active && open ? `▶ ${fmtDur(now - open.start)}` : ''}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </>}
       </main>
       <div class="strip" hidden={rest.length === 0} {...handlers}>

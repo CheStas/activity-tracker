@@ -35,7 +35,9 @@ export function readImport(raw: unknown, profileId: string, uid: () => string): 
   const ids = new Map<string, string>();
   const id = (old: string) => ids.get(old) ?? ids.set(old, uid()).get(old)!;
   const groupIds = new Set((file.groups ?? []).map((g) => g.id));
-  const settings = (file.kind === 'profile' ? file.profile?.settings : Object.fromEntries((file.settings ?? []).map((s) => [s.key, s.value]))) ?? {};
+  const settings: Partial<Settings> = (file.kind === 'profile' ? file.profile?.settings : Object.fromEntries((file.settings ?? []).map((s) => [s.key, s.value]))) ?? {};
+  // Files from before `unusedStrip` existed: the strip was part of popularity sizing.
+  if (settings.unusedStrip === undefined && settings.popularity !== undefined) settings.unusedStrip = settings.popularity;
 
   return {
     settings,

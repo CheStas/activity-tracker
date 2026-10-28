@@ -17,6 +17,8 @@ export interface Activity {
   color: string;
   order: number;
   archived: boolean;
+  /** Removed for good from Settings (implies archived); the record stays so history can still name it. */
+  deleted?: boolean;
   hiddenForDayId: string | null;
   targetMin: number | null;
 }
@@ -60,6 +62,7 @@ export interface Settings {
   layout: Layout;
   resetHour: number;
   popularity: boolean;
+  unusedStrip: boolean;
   autoExport: boolean;
   minSwitchSec: number;
 }

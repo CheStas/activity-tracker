@@ -8,6 +8,7 @@
     "resetHour": 0,
     "minSwitchSec": 60,
     "popularity": false,
+    "unusedStrip": false,
     "autoExport": false
   },
   "profiles": [

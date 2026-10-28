@@ -34,7 +34,7 @@ export const GapRow = ({ gap }: { gap: Gap }) => (
   <li class="gap muted"><span>{fmtRange(gap.start, gap.end)}</span><span>idle {fmtHM(gap.end - gap.start)}</span></li>
 );
 
-/** Horizontal bar: one coloured block per segment, positioned within [from, to]. */
+/** Horizontal bar: one coloured block per segment, positioned within [from, to], labelled with its duration. */
 export function TimelineBar({ from, to, segments, lookup }: { from: number; to: number; segments: Segment[]; lookup: Lookup }) {
   const span = Math.max(to - from, 1);
   return (
@@ -46,7 +46,9 @@ export function TimelineBar({ from, to, segments, lookup }: { from: number; to: 
             key={s.id}
             title={`${a?.name ?? '?'} ${fmtRange(s.start, s.end).replace(' – ', '–')}`}
             style={{ left: `${((s.start - from) / span) * 100}%`, width: `${(duration(s, to) / span) * 100}%`, background: a?.color ?? '#888' }}
-          />
+          >
+            <span class="tl-dur">{fmtHM(duration(s, to))}</span>
+          </span>
         );
       })}
       <div class="tl-labels"><span>{fmtClock(from)}</span><span>{fmtClock(to)}</span></div>

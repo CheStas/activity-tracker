@@ -66,3 +66,11 @@ test('groups stored with a default and a per-day toggle become a plain on flag',
   const old = { id: 'g', profileId: 'p', name: 'X', order: 0, defaultOn: false, toggledForDayId: 'd1' } as unknown as Group;
   assert.deepEqual(normalizeGroup(old), { id: 'g', profileId: 'p', name: 'X', order: 0, on: false });
 });
+
+test('files from before unusedStrip keep the strip exactly when popularity sizing was on', () => {
+  const file = (settings: object) => ({ app: 'activity-tracker', kind: 'profile', profile: { settings } });
+  assert.equal(readImport(file({ popularity: true }), 'pB', ids()).settings.unusedStrip, true);
+  assert.equal(readImport(file({ popularity: false }), 'pB', ids()).settings.unusedStrip, false);
+  assert.equal(readImport(file({ popularity: true, unusedStrip: false }), 'pB', ids()).settings.unusedStrip, false);
+  assert.equal(readImport(file({}), 'pB', ids()).settings.unusedStrip, undefined);
+});

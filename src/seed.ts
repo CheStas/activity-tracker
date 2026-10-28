@@ -23,6 +23,17 @@ export function newActivity(name: string, order: number, profileId: string, id: 
   };
 }
 
+/** Activity names are unique per profile, compared trimmed and case-insensitive (buttons show them capitalized). */
+export const nameKey = (name: string) => name.trim().toLowerCase();
+
+/**
+ * Stored or imported settings completed with the defaults. `unusedStrip` used to be part of `popularity`, so
+ * settings saved before it existed keep the strip exactly when popularity sizing was on.
+ */
+export function withDefaults(stored: Partial<Settings> = {}, defaults = seed.settings): Settings {
+  return { ...defaults, unusedStrip: stored.popularity ?? defaults.unusedStrip, ...stored };
+}
+
 /** Profiles, groups and activities to store on first run; activity order follows the file (groups first). */
 export function seedRecords({ profiles, palette, settings }: Seed, uid: () => string) {
   const out = { profiles: [] as Profile[], groups: [] as Group[], activities: [] as Activity[] };

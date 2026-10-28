@@ -55,6 +55,9 @@ and storage may be evicted.
   main screen shows only activities of groups that are on (and ungrouped ones). Several groups can be on at once,
   and a switch stays until you change it. The summary shows a total per group.
 - **Settings → Appearance:** theme (System/Dark/Light) and button layout (Rows/Tiles/Circles).
+- **Settings → Day:** size buttons by today's usage, and/or move activities not used today to a strip at the bottom.
+- Activity names are unique. A removed activity can be restored or deleted from the list; its history stays, and
+  adding the same name again continues it.
 - Switches shorter than a minute are not counted (the time goes to the next or previous activity); change the
   threshold in **Settings → Day → Minimum switch**.
 - The screen stays on while the app is open; turn this off in **Settings → Day → Keep the screen on**.

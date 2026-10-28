@@ -2,7 +2,7 @@
 // All mutations go through here.
 import * as db from './db.ts';
 import { assign, switchTo, closeAt, totals, dayTotal, openSegment, uuid } from './timeline.ts';
-import { seed, seedRecords, newActivity } from './seed.ts';
+import { seed, seedRecords, newActivity, nameKey, withDefaults } from './seed.ts';
 import { profileExport, readImport, normalizeGroup } from './backup.ts';
 import type { Activity, Day, Group, Profile, Segment, Settings } from './types.ts';
 
@@ -85,7 +85,7 @@ async function openProfile(profile: Profile) {
   ]);
   const day = days.find((d) => d.endedAt === null) ?? (await startDay(profile.id, Date.now()));
   const segments = await db.segmentsOfDay(day.id);
-  profile.settings = { ...DEFAULT_SETTINGS, ...profile.settings }; // settings added since the profile was stored
+  profile.settings = withDefaults(profile.settings); // settings added since the profile was stored
   Object.assign(state, { profile, groups: byOrder(groups.map(normalizeGroup)), activities: byOrder(activities), day, segments });
   await checkRollover(Date.now());
   emit('change');
@@ -232,12 +232,45 @@ function saveActivities(...list: Activity[]) {
   emit('change');
 }
 
+/** The activity (live or removed, not deleted) that already has this name, ignoring `exceptId`. */
+export const activityNamed = (name: string, exceptId?: string) =>
+  state.activities.find((a) => !a.deleted && a.id !== exceptId && nameKey(a.name) === nameKey(name));
+
+/**
+ * Add activities by name; returns the names refused because an activity (live or removed) already has them.
+ * A name of a deleted activity brings that record back as a new button, so its history and the new time are one
+ * activity.
+ */
 export function addActivities(text: string) {
   const names = text.split(/[,\n]/).map((s) => s.trim()).filter(Boolean);
   let order = Math.max(-1, ...state.activities.map((a) => a.order)) + 1;
-  const added = names.map((name) => newActivity(name, order++, state.profile.id, uid()));
-  state.activities.push(...added);
-  if (added.length) saveActivities(...added);
+  const taken: string[] = [];
+  const saved: Activity[] = [];
+  for (const name of names) {
+    if (activityNamed(name)) {
+      taken.push(name);
+      continue;
+    }
+    const old = state.activities.find((a) => a.deleted && nameKey(a.name) === nameKey(name));
+    if (old) {
+      Object.assign(old, { name, order: order++, archived: false, deleted: false, hiddenForDayId: null, groupId: null, targetMin: null });
+      saved.push(old);
+    } else {
+      const a = newActivity(name, order++, state.profile.id, uid());
+      state.activities.push(a);
+      saved.push(a);
+    }
+  }
+  byOrder(state.activities);
+  if (saved.length) saveActivities(...saved);
+  return taken;
+}
+
+/** Rename unless another activity already has the name; returns whether it was renamed. */
+export function renameActivity(id: string, name: string) {
+  if (activityNamed(name, id)) return false;
+  updateActivity(id, { name });
+  return true;
 }
 
 export function updateActivity(id: string, patch: Partial<Activity>) {
@@ -264,6 +297,11 @@ export function removeActivity(id: string) {
 }
 
 export const restoreActivity = (id: string) => updateActivity(id, { archived: false });
+
+/** Drop a removed activity from Settings for good. Its record and history stay; see addActivities. */
+export function deleteActivity(id: string) {
+  if (activityById(id)?.archived) updateActivity(id, { deleted: true });
+}
 
 export function setHiddenToday(id: string, hidden: boolean) {
   if (hidden && !canHideToday(id)) return;

@@ -93,6 +93,7 @@ input[type=checkbox] { width: 26px; height: 26px; min-height: 0; accent-color: v
   flex: 1; overflow-y: auto; padding: 20px 16px;
   display: flex; flex-direction: column; align-items: center; gap: var(--gap);
 }
+.acts { display: contents; }
 .act {
   --span: 1;
   width: min(820px, 100%); height: calc(72px + (var(--span) - 1) * 32px); flex: none;
@@ -122,7 +123,7 @@ input[type=checkbox] { width: 26px; height: 26px; min-height: 0; accent-color: v
 .hint strong { font-size: 1.5rem; font-weight: 600; }
 .hint span { color: var(--muted); font-size: 1.05rem; }
 .fresh .grid > :first-child { margin-top: auto; }
-.fresh .grid > :last-child { margin-bottom: auto; }
+.fresh .grid > :last-child, .fresh .acts > :last-child { margin-bottom: auto; }
 
 .strip { display: flex; gap: 8px; padding: 0 16px 16px; overflow-x: auto; flex: none; justify-content: center; flex-wrap: wrap; }
 .chip {
@@ -189,7 +190,13 @@ input[type=checkbox] { width: 26px; height: 26px; min-height: 0; accent-color: v
 .sessions-detail summary { cursor: pointer; color: var(--muted); padding: 8px 0; }
 
 .timeline { position: relative; height: 28px; background: var(--panel-2); border-radius: 8px; margin: 10px 0 26px; }
-.timeline > span { position: absolute; top: 0; bottom: 0; min-width: 2px; }
+.timeline > span { position: absolute; top: 0; bottom: 0; min-width: 2px; display: flex; align-items: center; justify-content: center; container-type: inline-size; }
+/* The block's duration, shown only when the block is wide enough for it. */
+.tl-dur {
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis; padding: 0 3px;
+  font-size: .75rem; font-weight: 600; font-variant-numeric: tabular-nums; color: #fff; text-shadow: 0 0 3px rgba(0,0,0,.7);
+}
+@container (max-width: 26px) { .tl-dur { display: none; } }
 .tl-labels { position: absolute; top: 32px; left: 0; right: 0; display: flex; justify-content: space-between; font-size: .8rem; color: var(--muted); }
 
 @media (max-width: 700px) {
@@ -203,26 +210,23 @@ input[type=checkbox] { width: 26px; height: 26px; min-height: 0; accent-color: v
 .totals td .muted, .sessions .muted { text-transform: none; }
 .sessions .grow { text-transform: capitalize; }
 
-/* ---------- tiles layout (Settings → Buttons → Tiles): stretched grid of vertical tiles ---------- */
-:root[data-layout="tiles"] .grid {
-  display: grid; align-items: stretch; padding: var(--gap); grid-auto-flow: dense;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  grid-auto-rows: minmax(130px, 1fr);
-}
+/* ---------- tiles layout (Settings → Buttons → Tiles): one full-height column per activity, side by side ---------- */
+/* The opposite of rows: popularity sizing changes a column's width, never its height, so nothing wraps. */
+:root[data-layout="tiles"] .grid { padding: var(--gap); }
+:root[data-layout="tiles"] .acts { display: flex; flex: 1; min-height: 0; align-self: stretch; gap: var(--gap); overflow-x: auto; }
 :root[data-layout="tiles"] .act {
-  width: auto; height: auto; flex-direction: column; justify-content: center; gap: 6px; padding: 12px 18px;
-  text-align: center; grid-column: span var(--span); grid-row: span var(--span);
+  width: auto; height: auto; min-width: 120px; flex: var(--span) 1 0%;
+  flex-direction: column; justify-content: center; gap: 6px; padding: 12px 18px; text-align: center;
+  transition: transform .12s, background .2s, box-shadow .2s, flex-grow .3s;
 }
 :root[data-layout="tiles"] .act .name { flex: none; max-width: 100%; font-size: clamp(1.1rem, 2.2vw, 1.8rem); white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }
 :root[data-layout="tiles"] .act .total { font-size: clamp(1.4rem, 3vw, 2.4rem); min-width: 0; text-align: center; }
 :root[data-layout="tiles"] .act .run { width: auto; text-align: center; }
 :root[data-layout="tiles"] .act .target { order: 4; }
 :root[data-layout="tiles"] .act.pressing { transform: scale(.96); }
-:root[data-layout="tiles"] .empty, :root[data-layout="tiles"] .hint { grid-column: 1 / -1; }
-:root[data-layout="tiles"] .fresh .grid { grid-template-rows: auto; }
-:root[data-layout="tiles"] .fresh .grid > * { margin: 0; }
+:root[data-layout="tiles"] .fresh .grid > *, :root[data-layout="tiles"] .fresh .acts > * { margin: 0; }
 @media (max-width: 700px) {
-  :root[data-layout="tiles"] .grid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); grid-auto-rows: minmax(110px, 1fr); }
+  :root[data-layout="tiles"] .act { min-width: 96px; padding: 10px; }
 }
 
 /* ---------- circles layout (Settings → Buttons → Circles): round buttons wrapped and centered ---------- */
@@ -245,7 +249,7 @@ input[type=checkbox] { width: 26px; height: 26px; min-height: 0; accent-color: v
 :root[data-layout="circles"] .act .target { order: 4; font-size: .85rem; }
 :root[data-layout="circles"] .act.pressing { transform: scale(.95); }
 :root[data-layout="circles"] .hint { flex-basis: 100%; }
-:root[data-layout="circles"] .fresh .grid > * { margin: 0; }
+:root[data-layout="circles"] .fresh .grid > *, :root[data-layout="circles"] .fresh .acts > * { margin: 0; }
 @media (max-width: 700px) {
   :root[data-layout="circles"] .grid { gap: 14px; padding: 16px; }
   :root[data-layout="circles"] .act { --d: clamp(110px, 40vw, 160px); padding: 10px; }

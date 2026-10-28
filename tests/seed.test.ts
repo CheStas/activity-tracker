@@ -1,6 +1,6 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
-import { seed, seedRecords, type Seed } from '../src/seed.ts';
+import { seed, seedRecords, nameKey, withDefaults, type Seed } from '../src/seed.ts';
 
 const ids = () => {
   let n = 0;
@@ -37,4 +37,17 @@ test('seedRecords builds profiles, groups and ordered activities', () => {
     r.activities.map((a) => [a.name, a.groupId, a.order, a.color, a.targetMin]),
     [['code', dev, 0, '#111', null], ['review', dev, 1, '#abc', 30], ['break', null, 2, '#111', null]],
   );
+});
+
+test('activity names compare trimmed and case-insensitive', () => {
+  assert.equal(nameKey('  PR Review '), nameKey('pr review'));
+  assert.notEqual(nameKey('pr review'), nameKey('pr-review'));
+});
+
+test('withDefaults fills missing settings; unusedStrip follows popularity in settings saved before it existed', () => {
+  const defaults = { ...seed.settings, unusedStrip: false };
+  assert.deepEqual(withDefaults({}, defaults), defaults);
+  assert.equal(withDefaults({ popularity: true }, defaults).unusedStrip, true);
+  assert.equal(withDefaults({ popularity: true, unusedStrip: false }, defaults).unusedStrip, false);
+  assert.equal(withDefaults({ theme: 'light' }, defaults).theme, 'light');
 });
