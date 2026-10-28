@@ -109,16 +109,6 @@ export function gaps(segments: Segment[], now: number): Gap[] {
   return out;
 }
 
-/** Timestamp of the most recent switch (any segment start or end not in the future). */
-export function lastSwitch(segments: Segment[], now: number): number | null {
-  let t: number | null = null;
-  for (const s of segments) {
-    if (s.start <= now) t = Math.max(t ?? -Infinity, s.start);
-    if (s.end !== null && s.end <= now) t = Math.max(t ?? -Infinity, s.end);
-  }
-  return t;
-}
-
 /** Close everything at `at`: open segment ends there, anything later is dropped. */
 export const closeAt = (segments: Segment[], at: number, opts?: AssignOpts) => assign(segments, null, at, null, opts);
 

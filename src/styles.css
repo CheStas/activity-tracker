@@ -188,6 +188,7 @@ input[type=checkbox] { width: 26px; height: 26px; min-height: 0; accent-color: v
 .group-totals { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); margin: 0 0 4px; }
 .group-totals strong { color: var(--text); font-weight: 600; }
 .sessions-detail summary { cursor: pointer; color: var(--muted); padding: 8px 0; }
+.sessions-detail summary button { margin-left: 12px; color: var(--text); }
 
 .timeline { position: relative; height: 28px; background: var(--panel-2); border-radius: 8px; margin: 10px 0 26px; }
 .timeline > span { position: absolute; top: 0; bottom: 0; min-width: 2px; display: flex; align-items: center; justify-content: center; container-type: inline-size; }
@@ -204,7 +205,7 @@ input[type=checkbox] { width: 26px; height: 26px; min-height: 0; accent-color: v
   .stat .v { font-size: 1.2rem; }
   .act { gap: 12px; padding: 0 16px; }
   .act .run { width: auto; }
-  .bar .stat:nth-child(4) { display: none; }
+  .bar .stat:nth-child(3) { display: none; }
 }
 
 .totals td .muted, .sessions .muted { text-transform: none; }

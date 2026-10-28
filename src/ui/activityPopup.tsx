@@ -1,16 +1,16 @@
-// Long-press popup: today's sessions for one activity, plus "active since…" / "stop all since…".
+// Long-press popup: today's sessions for one activity, plus "active since…" / "stop all since…" and a link to the day editor.
 import { useState } from 'preact/hooks';
 import { state, activityById, activeSegment, assignRange, deleteSession, editSession, todayTotals } from '../state.ts';
 import { sessionsFor, duration } from '../timeline.ts';
-import type { Segment } from '../types.ts';
+import type { Day, Segment } from '../types.ts';
 import { fmtDur, fmtHM, fmtRange, targetText } from './util.ts';
 import { TimePicker, clampTime } from './timePicker.tsx';
 import { openModal, useAppState } from './hooks.tsx';
 
-export const openActivityPopup = (activityId: string) =>
-  openModal((close) => <ActivityPopup activityId={activityId} close={close} />);
+export const openActivityPopup = (activityId: string, onEditSessions: () => void) =>
+  openModal((close) => <ActivityPopup activityId={activityId} close={close} onEditSessions={onEditSessions} />);
 
-function ActivityPopup({ activityId, close }: { activityId: string; close: () => void }) {
+function ActivityPopup({ activityId, close, onEditSessions }: { activityId: string; close: () => void; onEditSessions: () => void }) {
   useAppState();
   const [since, setSince] = useState(() => {
     const open = activeSegment();
@@ -50,26 +50,39 @@ function ActivityPopup({ activityId, close }: { activityId: string; close: () =>
         <button class="primary" onClick={() => apply(a.id)}>▶ Active since</button>
         <button onClick={() => apply(null)}>■ Stop all since</button>
       </div>
+      <div class="actions">
+        <button onClick={() => {
+          close();
+          onEditSessions();
+        }}>Edit sessions…</button>
+      </div>
     </div>
   );
 }
 
-/** Edit a session's start/end; a running session keeps running unless "Ended" is chosen. */
-export const openSessionEditor = (seg: Segment) => openModal((close) => <SessionEditor seg={seg} close={close} />);
+/**
+ * Edit a session's start/end within its day (today by default); a running session keeps running unless "Still
+ * running" is unchecked. A closed day has no running session.
+ */
+export const openSessionEditor = (seg: Segment, day: Day = state.day) =>
+  openModal((close) => <SessionEditor seg={seg} day={day} close={close} />);
 
-function SessionEditor({ seg, close }: { seg: Segment; close: () => void }) {
+function SessionEditor({ seg, day, close }: { seg: Segment; day: Day; close: () => void }) {
   const a = activityById(seg.activityId);
+  const max = day.endedAt ?? undefined;
   const [start, setStart] = useState(seg.start);
   const [end, setEnd] = useState(seg.end ?? Date.now());
   const [running, setRunning] = useState(seg.end === null);
   return (
     <div class="popup" style={{ '--c': a?.color ?? '#888' }}>
       <h2><span class="dot" />Edit {a?.name ?? 'session'}</h2>
-      <TimePicker value={start} onChange={setStart} min={state.day.startedAt} label="Start" />
-      <label class="check">
-        <input type="checkbox" checked={running} onChange={(e) => setRunning(e.currentTarget.checked)} /> Still running
-      </label>
-      <TimePicker value={end} onChange={setEnd} min={start} label="End" disabled={running} />
+      <TimePicker value={start} onChange={setStart} min={day.startedAt} max={max} label="Start" />
+      {max === undefined && (
+        <label class="check">
+          <input type="checkbox" checked={running} onChange={(e) => setRunning(e.currentTarget.checked)} /> Still running
+        </label>
+      )}
+      <TimePicker value={end} onChange={setEnd} min={start} max={max} label="End" disabled={running} />
       <div class="actions">
         <button class="primary" onClick={() => {
           editSession(seg, start, running ? null : end);

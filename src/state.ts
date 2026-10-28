@@ -18,7 +18,15 @@ export const state = {
   activities: [] as Activity[], // includes archived
   day: null as unknown as Day,
   segments: [] as Segment[], // current day
+  /** A closed day open in the day editor, with its segments; null while the editor shows today. */
+  pastDay: null as DayEdit | null,
 };
+
+/** A day and its segments, the target of a timeline edit. */
+export interface DayEdit {
+  day: Day;
+  segments: Segment[];
+}
 
 export type StateEvent = 'change' | 'dayClosed';
 export interface DayClosed {
@@ -42,7 +50,6 @@ let writeChain: Promise<unknown> = Promise.resolve();
 const queue = (fn: () => Promise<unknown>) => (writeChain = writeChain.then(fn).catch((e) => console.error(e)));
 
 const uid = uuid;
-const opts = () => ({ dayId: state.day.id });
 
 const byOrder = <T extends { order: number }>(list: T[]) => list.sort((a, b) => a.order - b.order);
 
@@ -86,7 +93,7 @@ async function openProfile(profile: Profile) {
   const day = days.find((d) => d.endedAt === null) ?? (await startDay(profile.id, Date.now()));
   const segments = await db.segmentsOfDay(day.id);
   profile.settings = withDefaults(profile.settings); // settings added since the profile was stored
-  Object.assign(state, { profile, groups: byOrder(groups.map(normalizeGroup)), activities: byOrder(activities), day, segments });
+  Object.assign(state, { profile, groups: byOrder(groups.map(normalizeGroup)), activities: byOrder(activities), day, segments, pastDay: null });
   await checkRollover(Date.now());
   emit('change');
 }
@@ -142,16 +149,33 @@ function lastBoundaryBefore(now: number, resetHour = state.profile.settings.rese
 
 // ---------- timeline mutations ----------
 
-function clampRange(from: number, to: number | null, now: number): [number, number | null] {
-  const f = Math.min(Math.max(from, state.day.startedAt), now);
-  const t = to === null ? null : Math.min(Math.max(to, f), now);
+const today = (): DayEdit => ({ day: state.day, segments: state.segments });
+const opts = (day: Day) => ({ dayId: day.id });
+
+/** The day a segment belongs to: today, or the closed day open in the day editor (null for any other day). */
+function dayOf(dayId: string | null): DayEdit | null {
+  if (dayId === state.day.id) return today();
+  return state.pastDay?.day.id === dayId ? state.pastDay : null;
+}
+
+/** Clamp to the day: [day start, now] for today, [start, end] for a closed day. */
+function clampRange(day: Day, from: number, to: number | null, now: number): [number, number | null] {
+  const last = day.endedAt ?? now;
+  const f = Math.min(Math.max(from, day.startedAt), last);
+  const t = to === null ? (day.endedAt === null ? null : last) : Math.min(Math.max(to, f), last);
   return [f, t];
 }
 
-function commit(segments: Segment[]) {
-  state.segments = segments;
-  const dayId = state.day.id;
-  queue(() => db.replaceDaySegments(dayId, segments));
+/** Store a day's new segments; a closed day's snapshot total follows. */
+function commit(day: Day, segments: Segment[]) {
+  if (day.id === state.day.id) {
+    state.segments = segments;
+  } else {
+    if (day.snapshot) day.snapshot = { ...day.snapshot, total: dayTotal(segments, day.endedAt!) };
+    state.pastDay = { day, segments };
+    queue(() => db.put('days', day));
+  }
+  queue(() => db.replaceDaySegments(day.id, segments));
   emit('change');
 }
 
@@ -159,34 +183,53 @@ function commit(segments: Segment[]) {
 export function tap(activityId: string, now = Date.now()) {
   const open = activeSegment();
   const target = open?.activityId === activityId ? null : activityId;
-  commit(switchTo(state.segments, target, now, state.profile.settings.minSwitchSec * 1000, opts()));
+  commit(state.day, switchTo(state.segments, target, now, state.profile.settings.minSwitchSec * 1000, opts(state.day)));
 }
 
-/** assign(activityId|null, from, to|null) clamped to the current day and now. */
-export function assignRange(activityId: string | null, from: number, to: number | null, now = Date.now()) {
-  const [f, t] = clampRange(from, to, now);
-  commit(assign(state.segments, activityId, f, t, opts()));
+/** assign(activityId|null, from, to|null) on a day (default today), clamped to that day and now. */
+export function assignRange(activityId: string | null, from: number, to: number | null, dayId = state.day.id, now = Date.now()) {
+  const target = dayOf(dayId);
+  if (!target) return;
+  const [f, t] = clampRange(target.day, from, to, now);
+  commit(target.day, assign(target.segments, activityId, f, t, opts(target.day)));
 }
 
 export function deleteSession(seg: Segment) {
-  commit(state.segments.filter((s) => s.id !== seg.id));
+  const target = dayOf(seg.dayId);
+  if (target) commit(target.day, target.segments.filter((s) => s.id !== seg.id));
 }
 
 /** Move a session to [start, end|null]; carves out whatever it now overlaps. */
 export function editSession(seg: Segment, start: number, end: number | null, now = Date.now()) {
-  const without = state.segments.filter((s) => s.id !== seg.id);
-  const [f, t] = clampRange(start, end, now);
-  commit(assign(without, seg.activityId, f, t, opts()));
+  const target = dayOf(seg.dayId);
+  if (!target) return;
+  const without = target.segments.filter((s) => s.id !== seg.id);
+  const [f, t] = clampRange(target.day, start, end, now);
+  commit(target.day, assign(without, seg.activityId, f, t, opts(target.day)));
 }
 
-export function clearDay() {
-  commit([]);
+export function clearDay(dayId = state.day.id) {
+  const target = dayOf(dayId);
+  if (target) commit(target.day, []);
+}
+
+/** The open profile's days, oldest first (today is the last one). */
+export async function dayList() {
+  await writeChain;
+  return (await db.getAllOf('days', state.profile.id)).sort((a, b) => a.startedAt - b.startedAt);
+}
+
+/** Show a closed day in the day editor; null (or today) goes back to today. */
+export async function openPastDay(day: Day | null) {
+  await writeChain;
+  state.pastDay = day && day.id !== state.day.id ? { day, segments: await db.segmentsOfDay(day.id) } : null;
+  emit('change');
 }
 
 // ---------- day lifecycle ----------
 
 async function closeDay(at: number) {
-  const segments = closeAt(state.segments, at, opts());
+  const segments = closeAt(state.segments, at, opts(state.day));
   const day = { ...state.day, endedAt: at };
   await writeChain;
   if (segments.length === 0) {

@@ -12,7 +12,7 @@ interface Props {
   onChange: (t: number) => void;
   /** earliest allowed timestamp */
   min: number;
-  /** latest allowed timestamp (default: now) */
+  /** latest allowed timestamp (default: now); a closed day's end, so the "x min ago" shortcuts are hidden */
   max?: number;
   label?: string;
   disabled?: boolean;
@@ -31,11 +31,13 @@ export function TimePicker({ value, onChange, min, max, label, disabled }: Props
         <output class="tp-value">{fmtClock(value)}</output>
         {STEPS.filter((s) => s > 0).map(step)}
       </div>
-      <div class="tp-row tp-ago">
-        {AGO.map((m) => (
-          <button type="button" key={m} onClick={() => set(Date.now() - m * 60000)}>{m ? `${m}m ago` : 'now'}</button>
-        ))}
-      </div>
+      {max === undefined && (
+        <div class="tp-row tp-ago">
+          {AGO.map((m) => (
+            <button type="button" key={m} onClick={() => set(Date.now() - m * 60000)}>{m ? `${m}m ago` : 'now'}</button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

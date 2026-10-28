@@ -13,11 +13,18 @@ import { download, isoDay, slug } from './ui/util.ts';
 import './styles.css';
 
 type View = 'main' | 'settings' | 'summary' | 'day-editor';
-// Esc / back goes up this hierarchy; main has no parent, so there are no loops.
-const parent: Partial<Record<View, View>> = { settings: 'main', summary: 'main', 'day-editor': 'settings' };
+// Esc / back goes up this hierarchy; main has no parent, so there are no loops. The day editor goes back to where it
+// was opened from: Settings, or Main (the activity popup's "Edit sessions").
+const parent: Partial<Record<View, View>> = { settings: 'main', summary: 'main' };
 
 function App() {
   const [view, setView] = useState<View>('main');
+  const [editorFrom, setEditorFrom] = useState<View>('settings');
+  parent['day-editor'] = editorFrom;
+  const toEditor = (from: View) => {
+    setEditorFrom(from);
+    setView('day-editor');
+  };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -37,6 +44,7 @@ function App() {
           onProfiles={openProfilePicker}
           onSettings={() => setView('settings')}
           onSummary={() => setView('summary')}
+          onDayEditor={() => toEditor('main')}
           onReset={() => {
             if (confirm('Close today and start a new day? Today is archived in the summary.')) resetDay();
           }}
@@ -44,9 +52,9 @@ function App() {
           onQuit={quit}
         />
       )}
-      {view === 'settings' && <Settings onBack={toMain} onDayEditor={() => setView('day-editor')} />}
-      {view === 'summary' && <Summary onBack={toMain} />}
-      {view === 'day-editor' && <DayEditor onBack={() => setView('settings')} />}
+      {view === 'settings' && <Settings onBack={toMain} onDayEditor={() => toEditor('settings')} />}
+      {view === 'summary' && <Summary onBack={toMain} onDayEditor={() => toEditor('summary')} />}
+      {view === 'day-editor' && <DayEditor onBack={() => setView(editorFrom)} />}
       <ModalHost />
     </>
   );

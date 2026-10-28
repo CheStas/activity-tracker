@@ -143,7 +143,7 @@ export function Settings({ onBack, onDayEditor }: { onBack: () => void; onDayEdi
           <Check checked={s.autoExport} onChange={(v) => setSetting('autoExport', v)}>
             Download a JSON backup when a day closes
           </Check>
-          <button onClick={onDayEditor}>Edit today's timeline…</button>
+          <button onClick={onDayEditor}>Edit timeline…</button>
         </section>
         <section>
           <h2>Device</h2>

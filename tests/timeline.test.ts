@@ -1,6 +1,6 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
-import { assign, totals, dayTotal, gaps, lastSwitch, sessionsFor, closeAt, switchTo } from '../src/timeline.ts';
+import { assign, totals, dayTotal, gaps, sessionsFor, closeAt, switchTo } from '../src/timeline.ts';
 import type { Segment } from '../src/types.ts';
 
 const T = (hhmm: string) => {
@@ -86,13 +86,6 @@ test('input is not mutated', () => {
   const copy = structuredClone(s);
   tap(s, 'B', '09:10');
   assert.deepEqual(s, copy);
-});
-
-test('lastSwitch reports the latest start or end', () => {
-  let s = tap([], 'A', '09:00');
-  s = assign(s, null, T('09:45'), null, opts);
-  assert.equal(lastSwitch(s, T('10:00')), T('09:45'));
-  assert.equal(lastSwitch([], T('10:00')), null);
 });
 
 const SEC = 1000;

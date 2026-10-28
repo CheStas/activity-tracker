@@ -1,4 +1,6 @@
 // Line icons (Lucide-style, 24×24, stroked with currentColor) so the header buttons share one look.
+import type { ComponentChildren } from 'preact';
+
 const PATHS = {
   summary: '<path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>',
   settings:
@@ -9,6 +11,8 @@ const PATHS = {
   power: '<path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.77.04"/>',
   users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
   back: '<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>',
+  prev: '<path d="m15 18-6-6 6-6"/>',
+  next: '<path d="m9 18 6-6-6-6"/>',
 };
 
 export type IconName = keyof typeof PATHS;
@@ -20,10 +24,11 @@ export const Icon = ({ name }: { name: IconName }) => (
   />
 );
 
-/** Header bar of a sub-screen: back button and title. */
-export const BackBar = ({ title, onBack }: { title: string; onBack: () => void }) => (
+/** Header bar of a sub-screen: back button, title, and optional controls on the right. */
+export const BackBar = ({ title, onBack, children }: { title: string; onBack: () => void; children?: ComponentChildren }) => (
   <header class="bar">
     <button class="icon" aria-label="Back" onClick={onBack}><Icon name="back" /></button>
     <h1>{title}</h1>
+    {children}
   </header>
 );

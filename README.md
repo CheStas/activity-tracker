@@ -46,7 +46,8 @@ and storage may be evicted.
 
 ## Use
 - **Tap** to switch the activity; **tap the active row** to stop all.
-- **Long-press** a row to see its sessions and to set "active since…" or "stop all since…".
+- **Long-press** a row to see its sessions and to set "active since…" or "stop all since…"; "Edit sessions…" opens
+  the day editor, where ‹ › step to earlier days so any day can be corrected.
 - Header icons: summary, settings, reset day (archives the day), full screen, close.
 - **Profiles** (Settings → Profiles): separate workspaces, e.g. "Work" and "Home", each with its own activities,
   days, summary, settings (appearance too) and backup file. Only one is open at a time; switch with the header

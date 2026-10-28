@@ -99,8 +99,8 @@ from 09:00, no meeting entry. Backdating from the popup and the day editor is no
     profile the label starts with the open profile's name ("Work · Thu, Oct 22")
   - the day total, then the start time of the day's **first activity** in smaller text ("since 08:12"); nothing
     before the first activity
-  - the active activity with its current run, and the time since the last switch. While idle it shows just "Idle":
-    no idle duration and no "since switch"
+  - the active activity with its current run (one timer only: a separate "since switch" timer would always show the
+    same value). While idle it shows just "Idle", with no idle duration
   - the clock
   - icon buttons in one matching style (line icons in a shared rounded group): Profiles (only with more than one
     profile, §12), Summary, Settings, Reset day, Full screen toggle (the icon reflects the state), Close app
@@ -128,8 +128,8 @@ from 09:00, no meeting entry. Backdating from the popup and the day editor is no
   behaviour.
 
 ### 6.1 Navigation, full screen, closing
-- **Esc = back**, following a fixed hierarchy with no loops: open popup → closes it; Day editor → Settings; Settings
-  and Summary → Main. On Main, Esc does nothing.
+- **Esc = back**, following a fixed hierarchy with no loops: open popup → closes it; Day editor → where it was opened
+  from (Settings, Summary, or Main via the activity popup); Settings and Summary → Main. On Main, Esc does nothing.
 - **Full screen is optional.** The ⛶ button toggles document full screen. The "Start in full screen" setting enters it
   on the first tap, because browsers require a user gesture. While in full screen, Esc is captured (Keyboard Lock) so
   it keeps meaning "back"; **hold Esc** (about 2 s) to leave full screen.
@@ -143,6 +143,7 @@ from 09:00, no meeting entry. Backdating from the popup and the day editor is no
 - **Active since…:** a touch time picker with quick offsets (−5/−10/−15/−30 min, ±1/±5/±15 adjustments, now). It calls
   `assign(X, t, null)`.
 - **Stop all since…:** calls `assign(null, t, null)`.
+- **Edit sessions…:** closes the popup and opens the day editor (§8) on today.
 
 ## 8. Settings
 The settings screen shows the open profile's name in its title.
@@ -161,9 +162,15 @@ The settings screen shows the open profile's name in its title.
 - Auto-export a JSON file when a day closes (toggle)
 - Export the open profile to JSON, import JSON into the open profile (replaces that profile's data and settings,
   after a confirmation; other profiles are untouched)
-- Link to the **day editor**: a timeline of today's segments, editing and deleting segments, adding a range
-  (activity + from + to/now), and clearing the whole day. Its bar runs from the first activity's start to the last
-  activity's end (or now while one is running); idle rows appear only for gaps between activities.
+- Link to the **day editor** (also reachable from the activity popup, §7, and from each summary day, §9): a timeline of one day's segments,
+  editing and deleting segments, adding a range (activity + from + to/now), and clearing the whole day. Its bar runs
+  from the first activity's start to the last activity's end (or now while one is running); idle rows appear only for
+  gaps between activities.
+  - It opens on today (from the summary: on that day); ‹ › in its header step through the profile's earlier days (any closed day can be edited).
+  - A closed day is edited within its own start and end: no "now", no running session, and the "x min ago" shortcuts
+    are hidden. Its snapshot total is updated, so the summary shows the edited day. Clearing a closed day keeps it
+    (empty) so it can be rebuilt; the summary skips empty days.
+  - Leaving the editor always returns it to today. The summary has no edit controls of its own, only the link.
 
 ## 9. Summary
 For the current day and every archived day **of the open profile**:
@@ -174,6 +181,8 @@ For the current day and every archived day **of the open profile**:
 - per group (when the profile has groups): total of its activities, plus "no group"
 - a horizontal timeline bar over the same range, one colored block per session with its duration inside ("1h 05m",
   "12m"; hidden when the block is too narrow; the day editor's bar shows the same), and the session list with idle rows for the gaps between activities
+- an **Edit sessions…** button next to the session list's toggle opens the day editor on that day; back returns to
+  the summary, which reloads
 
 ## 10. Keeping the screen awake
 - Settings → **Keep the screen on** (default on). While it is on and the page is visible, the app holds a screen Wake

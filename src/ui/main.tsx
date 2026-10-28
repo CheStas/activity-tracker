@@ -1,7 +1,6 @@
 // Main screen: header with live totals and the activity buttons.
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { tap, visibleActivities, activeSegment, todayTotals, todayTotal, activityById, firstStart, isGroupOn } from '../state.ts';
-import { lastSwitch } from '../timeline.ts';
 import type { Activity } from '../types.ts';
 import { fmtDur, fmtClock, fmtDayShort, targetText } from './util.ts';
 import { Icon } from './icons.tsx';
@@ -14,16 +13,17 @@ interface Props {
   onProfiles: () => void;
   onSettings: () => void;
   onSummary: () => void;
+  onDayEditor: () => void;
   onReset: () => void;
   onFullscreen: () => void;
   onQuit: () => void;
 }
 
-export function Main({ onProfiles, onSettings, onSummary, onReset, onFullscreen, onQuit }: Props) {
+export function Main({ onProfiles, onSettings, onSummary, onDayEditor, onReset, onFullscreen, onQuit }: Props) {
   const state = useAppState();
   const now = useNow();
   const fullscreen = useFullscreen();
-  const { pressed, handlers } = usePresses();
+  const { pressed, handlers } = usePresses(onDayEditor);
 
   const totals = todayTotals(now);
   const dayMs = todayTotal(now);
@@ -47,14 +47,10 @@ export function Main({ onProfiles, onSettings, onSummary, onReset, onFullscreen,
           <span class="k">{state.profiles.length > 1 ? state.profile.name : 'Today'} · {fmtDayShort(now)}</span>
           <span class="v">{fmtDur(dayMs)} <small id="day-start">{first === null ? '' : `since ${fmtClock(first)}`}</small></span>
         </div>
-        {/* While idle the header just says "Idle": no idle duration, no time since the switch. */}
+        {/* While idle the header just says "Idle": no idle duration. */}
         <div class="stat grow">
           <span class="k">{open ? activityById(open.activityId)?.name ?? 'Active' : 'Now'}</span>
           <span class={`v${open ? '' : ' muted'}`} id="current-run">{open ? fmtDur(now - open.start) : 'Idle'}</span>
-        </div>
-        <div class="stat" hidden={!open}>
-          <span class="k">Since switch</span>
-          <span class="v">{open ? fmtDur(now - (lastSwitch(state.segments, now) ?? now)) : '–'}</span>
         </div>
         <div class="stat"><span class="k">Clock</span><span class="v">{fmtClock(now)}</span></div>
         <nav class="icons">
@@ -126,7 +122,7 @@ function useFullscreen() {
 }
 
 /** Tap = switch, long-press = popup, on any [data-id] inside the container. Pointer events cover touch and mouse. */
-function usePresses() {
+function usePresses(onDayEditor: () => void) {
   const [pressed, setPressed] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const current = useRef<string | null>(null);
@@ -149,7 +145,7 @@ function usePresses() {
       timer.current = setTimeout(() => {
         longFired.current = true;
         setPressed(null);
-        openActivityPopup(id);
+        openActivityPopup(id, onDayEditor);
       }, LONG_PRESS_MS);
     },
     onPointerUp: (e: PointerEvent) => {

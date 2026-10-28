@@ -1,6 +1,6 @@
 // Summary: the current day and every archived day with totals, shares, idle time, timeline and sessions.
 import { useEffect, useState } from 'preact/hooks';
-import { state, history, activityById, groupById } from '../state.ts';
+import { state, history, activityById, groupById, openPastDay } from '../state.ts';
 import { totals, dayTotal, gaps, duration, type Gap } from '../timeline.ts';
 import type { Day, Segment } from '../types.ts';
 import { fmtClock, fmtDate, fmtHM, fmtRange, targetText } from './util.ts';
@@ -14,6 +14,13 @@ export interface Shown {
   removed?: boolean;
 }
 export type Lookup = (id: string) => Shown | undefined;
+
+/** Closed days use their snapshot so renamed/removed activities keep their historic name and color. */
+export const dayLookup = (day: Day): Lookup => (id) => {
+  const live = activityById(id);
+  const base = day.id === state.day.id ? live : day.snapshot?.activities?.[id] ?? live;
+  return base && { ...base, removed: live?.archived ?? !live };
+};
 
 /** Range shown for a day: first activity start to last activity end (or `now` while one runs). */
 export function activityRange(segments: Segment[], now: number): [number, number] {
@@ -58,7 +65,7 @@ export function TimelineBar({ from, to, segments, lookup }: { from: number; to: 
 
 type History = Awaited<ReturnType<typeof history>>;
 
-export function Summary({ onBack }: { onBack: () => void }) {
+export function Summary({ onBack, onDayEditor }: { onBack: () => void; onDayEditor: () => void }) {
   const [days, setDays] = useState<History | null>(null);
   const [now, setNow] = useState(Date.now);
   useEffect(() => {
@@ -74,22 +81,16 @@ export function Summary({ onBack }: { onBack: () => void }) {
       <div class="page">
         {days === null ? <p class="muted">Loading…</p>
           : days.length === 0 ? <p class="muted">Nothing tracked yet.</p>
-          : days.map(({ day, segments }, i) => <DayCard key={day.id} day={day} segments={segments} now={now} open={i === 0} />)}
+          : days.map(({ day, segments }, i) => <DayCard key={day.id} day={day} segments={segments} now={now} open={i === 0} onEdit={onDayEditor} />)}
       </div>
     </section>
   );
 }
 
-function DayCard({ day, segments, now, open }: { day: Day; segments: Segment[]; now: number; open: boolean }) {
+function DayCard({ day, segments, now, open, onEdit }: { day: Day; segments: Segment[]; now: number; open: boolean; onEdit: () => void }) {
   const end = day.endedAt ?? now;
   const isCurrent = day.id === state.day.id;
-  // Closed days use their snapshot so renamed/removed activities keep their historic name and color.
-  const lookup: Lookup = (id) => {
-    const live = activityById(id);
-    const snap = day.snapshot?.activities?.[id];
-    const base = isCurrent ? live : snap ?? live;
-    return base && { ...base, removed: live?.archived ?? !live };
-  };
+  const lookup = dayLookup(day);
 
   const tot = totals(segments, end);
   const total = dayTotal(segments, end);
@@ -136,7 +137,14 @@ function DayCard({ day, segments, now, open }: { day: Day; segments: Segment[]; 
         </tbody>
       </table>
       <details class="sessions-detail">
-        <summary>Sessions ({segments.length})</summary>
+        <summary>
+          Sessions ({segments.length})
+          {/* Opens the day editor on this day; preventDefault keeps the list from toggling. */}
+          <button onClick={(e) => {
+            e.preventDefault();
+            openPastDay(day).then(onEdit);
+          }}>Edit sessions…</button>
+        </summary>
         <ul class="sessions">
           {logRows(segments, end).map(({ seg: s, gap, t }) => {
             if (gap) return <GapRow key={`gap-${t}`} gap={gap} />;
