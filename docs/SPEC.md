@@ -20,10 +20,13 @@ A full-screen web app for a Linux PC/laptop with a touchscreen. It works like a 
 | Static hosting | The built `dist/` folder works from any static web server, including a subpath, because Vite builds with relative paths (`base: './'`). Data is per browser, per device, per site address (IndexedDB); there is no sync. Use **HTTPS** for screen keep-awake and persistent storage. Plain HTTP works too: IDs fall back to `crypto.getRandomValues` because `crypto.randomUUID` needs a secure context. Safari may evict data after about 7 days without visits unless the site is added to the home screen. |
 | Plain HTML (optional) | `npm run build:single` builds `dist-single/activity-tracker.html` (all JS and CSS inlined via `vite-plugin-singlefile`), a single file to open by double-click (browsers block module files on `file://`). No screen keep-awake. **Its data is separate** from the localhost version (a different origin); move data between them with export/import. Rebuild after code changes. |
 | Device | Linux PC/laptop touchscreen; the layout is responsive, with large touch targets |
-| Backup | JSON export/import in settings; optional automatic JSON download when a day closes |
+| Backup | JSON export/import in settings, **one profile per file** (§12); optional automatic JSON download when a day closes |
+| Seed data | `config/seed.json`, bundled at build time (§14) |
 
 ## 3. Activities (buttons)
-- These activities are seeded on first run: **break, meeting, task, pr review, communication, setup, prepare ticket**.
+- Activities belong to a **profile** (§12) and optionally to one **group** (§13).
+- The first-run activities, groups and profiles come from the seed config file `config/seed.json` (§14), not from
+  the code.
 - The list is configured in Settings. You can add one or more names at once (comma- or newline-separated), rename, recolor
   and reorder activities, and set an optional daily target in minutes.
 - **Removing** an activity is a soft delete (`archived: true`). Its data is **never** deleted:
@@ -85,14 +88,15 @@ from 09:00, no meeting entry. Backdating from the popup and the day editor is no
 
 ## 6. Main screen (kept minimal)
 - **Header:**
-  - "Today · Thu, Oct 22": the label and the current date on one line, in the same style
+  - "Today · Thu, Oct 22": the label and the current date on one line, in the same style. With more than one
+    profile the label starts with the open profile's name ("Work · Thu, Oct 22")
   - the day total, then the start time of the day's **first activity** in smaller text ("since 08:12"); nothing
     before the first activity
   - the active activity with its current run, and the time since the last switch. While idle it shows just "Idle":
     no idle duration and no "since switch"
   - the clock
-  - five icon buttons in one matching style (line icons in a shared rounded group): Summary, Settings, Reset day,
-    Full screen toggle (the icon reflects the state), Close app
+  - icon buttons in one matching style (line icons in a shared rounded group): Profiles (only with more than one
+    profile, §12), Summary, Settings, Reset day, Full screen toggle (the icon reflects the state), Close app
 - **Layout** (Settings → Appearance → Buttons): **Rows** (default, described next), **Tiles**: a grid of vertical
   tiles (name, total, run, target stacked) stretched to fill the screen, or **Circles**: round buttons (same
   content, stacked) wrapped and centered on the screen. With popularity sizing on, tiles span 1–3 grid cells and
@@ -128,25 +132,31 @@ from 09:00, no meeting entry. Backdating from the popup and the day editor is no
 - **Stop all since…:** calls `assign(null, t, null)`.
 
 ## 8. Settings
-- Activities: add, rename, color, daily target, reorder, hide for today, remove (soft), restore removed
+The settings screen shows the open profile's name in its title.
+- Profiles: open (switch to), rename, add, delete (§12)
+- Groups: add, rename, on/off, reorder, delete (§13)
+- Activities: add, rename, color, group, daily target, reorder, hide for today, remove (soft), restore removed
 - Appearance: theme (System/Dark/Light), button layout (Rows/Tiles/Circles)
 - Minimum switch: Off / 15 s / 30 s / 1 min (default) / 2 min / 3 min / 5 min (§4.2)
+- **Every setting below belongs to the open profile** (§12), appearance included.
 - Daily reset hour (0–23)
 - Start in full screen (toggle)
 - Keep the screen on (toggle, **on** by default; §10)
 - Popularity sizing toggle
 - Auto-export a JSON file when a day closes (toggle)
-- Export all data to JSON, import JSON (replaces all data, after a confirmation)
+- Export the open profile to JSON, import JSON into the open profile (replaces that profile's data and settings,
+  after a confirmation; other profiles are untouched)
 - Link to the **day editor**: a timeline of today's segments, editing and deleting segments, adding a range
   (activity + from + to/now), and clearing the whole day. Its bar runs from the first activity's start to the last
   activity's end (or now while one is running); idle rows appear only for gaps between activities.
 
 ## 9. Summary
-For the current day and every archived day:
+For the current day and every archived day **of the open profile**:
 - total tracked time, the start of the first activity and the end of the last one (or "now" while running), and
   idle time (untracked gaps between the first start and the last end; time before the first or after the last
   activity is never idle)
 - per activity: total, percentage, and target delta
+- per group (when the profile has groups): total of its activities, plus "no group"
 - a horizontal timeline bar over the same range, and the session list with idle rows for the gaps between activities
 
 ## 10. Keeping the screen awake
@@ -158,6 +168,52 @@ For the current day and every archived day:
 - The Wake Lock needs a secure context (localhost or HTTPS); the plain HTML file and plain-HTTP hosting cannot keep
   the screen on. Settings says so when it is not available.
 
-## 11. Non-goals (for now)
+## 12. Profiles
+A profile is a separate workspace, like a separate copy of the app: its own activities, groups, days, segments,
+summary, backup file and **all settings** (theme, button layout, full screen, keep the screen on, reset hour, minimum
+switch, popularity sizing, auto-export).
+- **Exactly one profile is open** at a time. The open profile is remembered across restarts.
+- **Switching** (header Profiles button, or Settings → Profiles → Open) loads the other profile. Nothing is stopped:
+  a running activity in the profile you leave keeps counting, exactly as when the app is closed, and that profile's
+  day rolls over (§5) when it is opened again. The profile picker warns when an activity is running in the open
+  profile.
+- **Add:** creates a profile with no activities, groups or days, and a **copy of the open profile's settings**
+  (appearance included); change them afterwards in that profile.
+- **Rename:** any profile.
+- **Delete:** only a profile that is not open; after a confirmation it permanently deletes that profile's
+  activities, groups, days and segments. The last profile cannot be deleted.
+- **Upgrade from a version without profiles:** all existing activities and days move into a profile named
+  "Default", which also takes over the old settings.
+- **Export/import is per profile.** Export writes the open profile (name, settings, groups, activities, days,
+  segments) to `activity-tracker-<profile>-<date>.json`. Import replaces the open profile's data and settings with the
+  file's (its name is kept) and never touches other profiles. All ids are renewed on import, so a file exported from
+  one profile can be imported into another, or into a copy of the app elsewhere, without clashes. Exports from the
+  version without profiles import the same way.
+
+## 13. Groups
+Groups are a soft way to separate activities inside one profile, for people who don't want to switch profiles
+(for example "Work" and "Home" in one profile).
+- A group has a name, an order and an **on** flag. An activity is in at most one group or in none.
+- Groups appear **only in Settings and the Summary**; the main screen shows no group controls.
+- **On/off** is switched in Settings → Groups and **stays** until it is changed (no daily reset).
+- **Not strict:** any number of groups can be on at the same time, and a group can be turned on at any moment, so one
+  day can use activities from several groups. Activities without a group are always shown.
+- When a group is off its activities are hidden from the main screen, except the **active** activity, which stays
+  visible until it is stopped. Their time is kept and still shows in the summary.
+- The day editor's "Add range" offers all activities that are not removed, whatever their group.
+- **Delete group:** its activities move to "no group"; nothing else changes.
+
+## 14. Seed config
+`config/seed.json` holds every default that used to be in the code. It is imported at build time (so it also works
+in the single-file build); `scripts/start.sh` rebuilds when it changes. It is applied **only on first run** (an empty
+database); after that everything is edited in Settings.
+- `palette`: colors given to new activities in turn
+- `settings`: the settings of every seeded profile (`theme`, `layout`, `startFullscreen`, `keepAwake`,
+  `resetHour`, `minSwitchSec`, `popularity`, `autoExport`); a profile may override some with its own `settings`
+- `profiles`: the profiles to create, the first one is opened. Each has a `name`, optional `settings`, optional
+  `groups` (`name`, `on` (default true), `activities`) and optional ungrouped `activities`. An activity is a name, or
+  an object `{ "name", "color"?, "targetMin"? }`.
+
+## 15. Non-goals (for now)
 - multi-device sync
 - server-side storage

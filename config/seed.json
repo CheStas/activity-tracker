@@ -1,0 +1,26 @@
+{
+  "palette": ["#4f8cff", "#f2994a", "#27ae60", "#bb6bd9", "#eb5757", "#2d9cdb", "#f2c94c", "#6fcf97", "#ff7eb6", "#9b8cff"],
+  "settings": {
+    "theme": "system",
+    "layout": "rows",
+    "startFullscreen": false,
+    "keepAwake": true,
+    "resetHour": 0,
+    "minSwitchSec": 60,
+    "popularity": false,
+    "autoExport": false
+  },
+  "profiles": [
+    {
+      "name": "Default",
+      "groups": [
+        {
+          "name": "Work",
+          "on": true,
+          "activities": ["meeting", "task", "pr review", "communication", "setup", "prepare ticket"]
+        }
+      ],
+      "activities": ["break"]
+    }
+  ]
+}

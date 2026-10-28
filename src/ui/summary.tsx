@@ -1,6 +1,6 @@
 // Summary: the current day and every archived day with totals, shares, idle time, timeline and sessions.
 import { useEffect, useState } from 'preact/hooks';
-import { state, history, activityById } from '../state.ts';
+import { state, history, activityById, groupById } from '../state.ts';
 import { totals, dayTotal, gaps, duration, type Gap } from '../timeline.ts';
 import type { Day, Segment } from '../types.ts';
 import { fmtClock, fmtDate, fmtHM, fmtRange, targetText } from './util.ts';
@@ -94,6 +94,12 @@ function DayCard({ day, segments, now, open }: { day: Day; segments: Segment[]; 
   const [first, last] = activityRange(segments, end);
   const idle = gaps(segments, end).reduce((sum, g) => sum + g.end - g.start, 0);
   const rows = [...tot.entries()].sort((a, b) => b[1] - a[1]);
+  // Per group, by each activity's current group (removed groups count as "no group").
+  const byGroup = new Map<string, number>();
+  for (const [id, ms] of tot) {
+    const name = groupById(activityById(id)?.groupId ?? null)?.name ?? 'no group';
+    byGroup.set(name, (byGroup.get(name) ?? 0) + ms);
+  }
 
   return (
     <details class="card" open={open}>
@@ -106,6 +112,11 @@ function DayCard({ day, segments, now, open }: { day: Day; segments: Segment[]; 
         {' '}· tracked {fmtHM(total)} · idle {fmtHM(idle)}
       </p>
       <TimelineBar from={first} to={last} segments={segments} lookup={lookup} />
+      {state.groups.length > 0 && (
+        <p class="group-totals">
+          {[...byGroup].sort((a, b) => b[1] - a[1]).map(([name, ms]) => <span key={name}>{name} <strong>{fmtHM(ms)}</strong></span>)}
+        </p>
+      )}
       <table class="totals">
         <tbody>
           {rows.map(([id, ms]) => {

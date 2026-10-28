@@ -1,31 +1,43 @@
-// Thin IndexedDB wrapper. Stores: activities, days, segments (index dayId), settings (key/value).
-import type { Activity, Day, Segment } from './types.ts';
+// Thin IndexedDB wrapper. Stores: profiles, groups / activities / days (index profileId), segments (index dayId),
+// settings (key/value).
+import type { Activity, Day, Group, Profile, Segment } from './types.ts';
+import type { ProfileData } from './backup.ts';
 
 const DB_NAME = 'activity-tracker';
-const VERSION = 1;
-export const STORES = ['activities', 'days', 'segments', 'settings'] as const;
+const VERSION = 2;
 
 interface Records {
+  profiles: Profile;
+  groups: Group;
   activities: Activity;
   days: Day;
   segments: Segment;
   settings: { key: string; value: unknown };
 }
 type Store = keyof Records;
-
-export type Export = { app: string; version: number; exportedAt: number } & { [S in Store]: Records[S][] };
+type ProfileStore = 'groups' | 'activities' | 'days';
 
 let dbPromise: Promise<IDBDatabase> | null = null;
 
 function open() {
   dbPromise ??= new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, VERSION);
-    req.onupgradeneeded = () => {
+    req.onupgradeneeded = (e) => {
       const db = req.result;
-      db.createObjectStore('activities', { keyPath: 'id' });
-      db.createObjectStore('days', { keyPath: 'id' });
-      db.createObjectStore('segments', { keyPath: 'id' }).createIndex('dayId', 'dayId');
-      db.createObjectStore('settings', { keyPath: 'key' });
+      const tx = req.transaction!;
+      if (e.oldVersion < 1) {
+        db.createObjectStore('activities', { keyPath: 'id' });
+        db.createObjectStore('days', { keyPath: 'id' });
+        db.createObjectStore('segments', { keyPath: 'id' }).createIndex('dayId', 'dayId');
+        db.createObjectStore('settings', { keyPath: 'key' });
+      }
+      if (e.oldVersion < 2) {
+        // v1 records have no profileId; state.init() moves them into a "Default" profile.
+        db.createObjectStore('profiles', { keyPath: 'id' });
+        db.createObjectStore('groups', { keyPath: 'id' }).createIndex('profileId', 'profileId');
+        tx.objectStore('activities').createIndex('profileId', 'profileId');
+        tx.objectStore('days').createIndex('profileId', 'profileId');
+      }
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
@@ -48,6 +60,11 @@ const result = <T>(req: IDBRequest<T>) =>
 export async function getAll<S extends Store>(store: S): Promise<Records[S][]> {
   const db = await open();
   return result(db.transaction(store).objectStore(store).getAll());
+}
+
+export async function getAllOf<S extends ProfileStore>(store: S, profileId: string): Promise<Records[S][]> {
+  const db = await open();
+  return result(db.transaction(store).objectStore(store).index('profileId').getAll(profileId));
 }
 
 export async function put<S extends Store>(store: S, ...values: Records[S][]) {
@@ -80,6 +97,39 @@ export async function replaceDaySegments(dayId: string, segments: Segment[]) {
   return done(tx);
 }
 
+/** A profile's groups, activities, days and the days' segments. */
+export async function profileData(profileId: string): Promise<ProfileData> {
+  const [groups, activities, days] = await Promise.all([getAllOf('groups', profileId), getAllOf('activities', profileId), getAllOf('days', profileId)]);
+  const segments = (await Promise.all(days.map((d) => segmentsOfDay(d.id)))).flat();
+  return { groups, activities, days, segments };
+}
+
+/**
+ * Atomically delete a profile's groups, activities, days and segments, then either store `replacement` (the profile
+ * record and its new data) or, without it, delete the profile record too.
+ */
+export async function replaceProfile(profileId: string, replacement?: { profile: Profile } & ProfileData) {
+  const db = await open();
+  const tx = db.transaction(['profiles', 'groups', 'activities', 'days', 'segments'], 'readwrite');
+  for (const s of ['groups', 'activities'] as const) {
+    for (const k of await result(tx.objectStore(s).index('profileId').getAllKeys(profileId))) tx.objectStore(s).delete(k);
+  }
+  const segments = tx.objectStore('segments');
+  for (const dayId of await result(tx.objectStore('days').index('profileId').getAllKeys(profileId))) {
+    tx.objectStore('days').delete(dayId);
+    for (const k of await result(segments.index('dayId').getAllKeys(dayId))) segments.delete(k);
+  }
+  if (replacement) {
+    tx.objectStore('profiles').put(replacement.profile);
+    for (const s of ['groups', 'activities', 'days', 'segments'] as const) {
+      for (const v of replacement[s]) tx.objectStore(s).put(v);
+    }
+  } else {
+    tx.objectStore('profiles').delete(profileId);
+  }
+  return done(tx);
+}
+
 export async function getSetting<T>(key: string, fallback: T): Promise<T> {
   const db = await open();
   const row: Records['settings'] | undefined = await result(db.transaction('settings').objectStore('settings').get(key));
@@ -87,20 +137,3 @@ export async function getSetting<T>(key: string, fallback: T): Promise<T> {
 }
 
 export const setSetting = (key: string, value: unknown) => put('settings', { key, value });
-
-export async function exportAll(): Promise<Export> {
-  const out = { app: DB_NAME, version: VERSION, exportedAt: Date.now() } as Export;
-  for (const s of STORES) (out[s] as unknown[]) = await getAll(s);
-  return out;
-}
-
-export async function importAll(data: Partial<Export> | null) {
-  if (data?.app !== DB_NAME) throw new Error('Not an activity-tracker export');
-  const db = await open();
-  const tx = db.transaction(STORES, 'readwrite');
-  for (const s of STORES) {
-    tx.objectStore(s).clear();
-    for (const v of data[s] ?? []) tx.objectStore(s).put(v);
-  }
-  return done(tx);
-}

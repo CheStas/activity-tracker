@@ -28,7 +28,7 @@ BROWSER="${BROWSER:-$(command -v chromium-browser || command -v chromium || comm
 
 # Build dist/ when it is missing or older than the sources. Without npm, serve whatever build exists.
 DIST="$APP_DIR/dist"
-if [ ! -f "$DIST/index.html" ] || [ -n "$(find "$APP_DIR/src" "$APP_DIR/index.html" "$APP_DIR/package.json" "$APP_DIR/vite.config.ts" -newer "$DIST/index.html" -print -quit)" ]; then
+if [ ! -f "$DIST/index.html" ] || [ -n "$(find "$APP_DIR/src" "$APP_DIR/config" "$APP_DIR/index.html" "$APP_DIR/package.json" "$APP_DIR/vite.config.ts" -newer "$DIST/index.html" -print -quit)" ]; then
   if command -v npm >/dev/null; then
     (cd "$APP_DIR" && { [ -d node_modules ] || npm ci; } && npm run build)
   elif [ -f "$DIST/index.html" ]; then

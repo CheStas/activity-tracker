@@ -1,12 +1,13 @@
-// Settings screen: activities (add, rename, color, target, reorder, hide for today, remove/restore),
-// appearance, reset hour, minimum switch, popularity sizing, auto-export, export/import.
+// Settings screen: profiles, groups, activities (add, rename, color, group, target, reorder, hide for today,
+// remove/restore), appearance, per-profile day settings, export/import.
 import {
   addActivities, updateActivity, moveActivity, removeActivity, restoreActivity,
   setHiddenToday, canHideToday, activeSegment, setSetting, exportData, importData,
+  addGroups, updateGroup, moveGroup, removeGroup, addProfile, renameProfile, removeProfile, switchProfile,
 } from '../state.ts';
 import type { ComponentChildren } from 'preact';
-import type { Activity, Layout, Theme } from '../types.ts';
-import { download, isoDay, fmtSwitch } from './util.ts';
+import type { Activity, Group, Layout, Profile, Theme } from '../types.ts';
+import { download, isoDay, fmtSwitch, slug } from './util.ts';
 import { BackBar } from './icons.tsx';
 import { useAppState } from './hooks.tsx';
 
@@ -15,14 +16,16 @@ const HOURS = Array.from({ length: 24 }, (_, h) => h);
 
 export function Settings({ onBack, onDayEditor }: { onBack: () => void; onDayEditor: () => void }) {
   const state = useAppState();
-  const s = state.settings;
+  const s = state.profile.settings;
   const live = state.activities.filter((a) => !a.archived);
   const removed = state.activities.filter((a) => a.archived);
 
-  const onAdd = (e: SubmitEvent) => {
+  /** Submit handler for a one-field form: passes the trimmed field value, then clears the form. */
+  const onAdd = (fn: (text: string) => void) => (e: SubmitEvent) => {
     e.preventDefault();
     const form = e.currentTarget as HTMLFormElement;
-    addActivities((form.elements.namedItem('names') as HTMLTextAreaElement).value);
+    const text = (form.elements.namedItem('names') as HTMLInputElement).value.trim();
+    if (text) fn(text);
     form.reset();
   };
 
@@ -30,7 +33,7 @@ export function Settings({ onBack, onDayEditor }: { onBack: () => void; onDayEdi
     const input = e.currentTarget as HTMLInputElement;
     const file = input.files?.[0];
     input.value = '';
-    if (!file || !confirm('Import replaces ALL current data. Continue?')) return;
+    if (!file || !confirm(`Import replaces ALL data and settings of the profile "${state.profile.name}". Other profiles are not changed. Continue?`)) return;
     try {
       await importData(JSON.parse(await file.text()));
       alert('Import done.');
@@ -41,14 +44,43 @@ export function Settings({ onBack, onDayEditor }: { onBack: () => void; onDayEdi
 
   return (
     <section class="view">
-      <BackBar title="Settings" onBack={onBack} />
+      <BackBar title={state.profiles.length > 1 ? `Settings · ${state.profile.name}` : 'Settings'} onBack={onBack} />
       <div class="page">
+        <section>
+          <h2>Profiles</h2>
+          <p class="muted">
+            Each profile is a separate workspace with its own activities, groups, days, summary, settings and backup.
+            One is open at a time; a running activity keeps counting while you are in another profile. A new profile
+            starts with a copy of this profile's settings.
+          </p>
+          <ul class="act-list">
+            {state.profiles.map((p) => <ProfileRow key={p.id} p={p} />)}
+          </ul>
+          <form class="row" onSubmit={onAdd(addProfile)}>
+            <input name="names" type="text" class="grow" placeholder="New profile name, e.g. Home" />
+            <button class="primary">Add profile</button>
+          </form>
+        </section>
+        <section>
+          <h2>Groups</h2>
+          <p class="muted">
+            The main screen shows activities of groups that are on, plus those without a group. Several groups can be
+            on at once; a group stays on or off until you change it.
+          </p>
+          <ul class="act-list">
+            {state.groups.map((g, i) => <GroupRow key={g.id} g={g} first={i === 0} last={i === state.groups.length - 1} />)}
+          </ul>
+          <form class="row" onSubmit={onAdd(addGroups)}>
+            <textarea name="names" rows={1} placeholder="Add groups: one per line or comma-separated" />
+            <button class="primary">Add</button>
+          </form>
+        </section>
         <section>
           <h2>Activities</h2>
           <ul class="act-list">
             {live.map((a, i) => <ActivityRow key={a.id} a={a} first={i === 0} last={i === live.length - 1} />)}
           </ul>
-          <form class="row" onSubmit={onAdd}>
+          <form class="row" onSubmit={onAdd(addActivities)}>
             <textarea name="names" rows={2} placeholder="Add activities: one per line or comma-separated" />
             <button class="primary">Add</button>
           </form>
@@ -99,6 +131,10 @@ export function Settings({ onBack, onDayEditor }: { onBack: () => void; onDayEdi
           <Check checked={s.autoExport} onChange={(v) => setSetting('autoExport', v)}>
             Download a JSON backup when a day closes
           </Check>
+          <button onClick={onDayEditor}>Edit today's timeline…</button>
+        </section>
+        <section>
+          <h2>Device</h2>
           <Check checked={s.startFullscreen} onChange={(v) => setSetting('startFullscreen', v)}>
             Start in full screen (on the first tap; the full screen icon toggles, hold Esc to leave)
           </Check>
@@ -106,12 +142,12 @@ export function Settings({ onBack, onDayEditor }: { onBack: () => void; onDayEdi
             Keep the screen on while the app is open
             {!('wakeLock' in navigator) && <> <span class="muted">(not available here: needs localhost or HTTPS)</span></>}
           </Check>
-          <button onClick={onDayEditor}>Edit today's timeline…</button>
         </section>
         <section>
           <h2>Backup</h2>
+          <p class="muted">Export and import cover this profile only; import replaces its data and settings.</p>
           <div class="row">
-            <button onClick={async () => download(`activity-tracker-${isoDay(Date.now())}.json`, await exportData())}>Export JSON</button>
+            <button onClick={async () => download(`activity-tracker-${slug(state.profile.name)}-${isoDay(Date.now())}.json`, await exportData())}>Export JSON</button>
             <label class="button">Import JSON<input type="file" accept="application/json" hidden onChange={onImport} /></label>
           </div>
         </section>
@@ -125,6 +161,54 @@ function Check({ checked, onChange, children }: { checked: boolean; onChange: (v
     <label class="check">
       <input type="checkbox" checked={checked} onChange={(e) => onChange(e.currentTarget.checked)} /> {children}
     </label>
+  );
+}
+
+function ProfileRow({ p }: { p: Profile }) {
+  const state = useAppState();
+  const isOpen = p.id === state.profile.id;
+  return (
+    <li>
+      <input
+        key={`name:${p.name}`} type="text" defaultValue={p.name} aria-label="Profile name"
+        onChange={(e) => {
+          const name = e.currentTarget.value.trim();
+          if (name) renameProfile(p.id, name);
+        }}
+      />
+      {isOpen ? <span class="badge">open</span> : <button onClick={() => switchProfile(p.id)}>Open</button>}
+      <button class="danger" disabled={isOpen} title={isOpen ? 'Open another profile first' : ''} onClick={() => {
+        if (confirm(`Delete profile "${p.name}" and ALL its activities, days and history? This cannot be undone (export a backup first).`)) {
+          removeProfile(p.id);
+        }
+      }}>Delete</button>
+    </li>
+  );
+}
+
+function GroupRow({ g, first, last }: { g: Group; first: boolean; last: boolean }) {
+  const state = useAppState();
+  const count = state.activities.filter((a) => a.groupId === g.id && !a.archived).length;
+  return (
+    <li>
+      <input
+        key={`name:${g.name}`} type="text" defaultValue={g.name} aria-label="Group name"
+        onChange={(e) => {
+          const name = e.currentTarget.value.trim();
+          if (name) updateGroup(g.id, { name });
+        }}
+      />
+      <span class="muted">{count} activit{count === 1 ? 'y' : 'ies'}</span>
+      <label class="check">
+        <input type="checkbox" checked={g.on} onChange={(e) => updateGroup(g.id, { on: e.currentTarget.checked })} />
+        On
+      </label>
+      <button disabled={first} aria-label="Move up" onClick={() => moveGroup(g.id, -1)}>↑</button>
+      <button disabled={last} aria-label="Move down" onClick={() => moveGroup(g.id, 1)}>↓</button>
+      <button class="danger" onClick={() => {
+        if (confirm(`Delete group "${g.name}"? Its activities are kept and move to "no group".`)) removeGroup(g.id);
+      }}>Delete</button>
+    </li>
   );
 }
 
@@ -143,6 +227,12 @@ function ActivityRow({ a, first, last }: { a: Activity; first: boolean; last: bo
           if (name) updateActivity(a.id, { name });
         }}
       />
+      {state.groups.length > 0 && (
+        <select value={a.groupId ?? ''} aria-label="Group" onChange={(e) => updateActivity(a.id, { groupId: e.currentTarget.value || null })}>
+          <option value="">No group</option>
+          {state.groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+        </select>
+      )}
       <label class="target-in">target
         <input
           key={`target:${a.targetMin}`} type="number" min="0" step="5" placeholder="–" defaultValue={String(a.targetMin ?? '')}

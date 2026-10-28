@@ -167,6 +167,9 @@ input[type=checkbox] { width: 26px; height: 26px; min-height: 0; accent-color: v
 .act-list { list-style: none; padding: 0; margin: 0 0 12px; }
 .act-list li { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 0; border-bottom: 1px solid var(--line); }
 .act-list input[type=text] { flex: 1; min-width: 160px; }
+.act-list select { min-width: 140px; }
+.profile-list { display: flex; flex-direction: column; gap: var(--gap); margin-top: 12px; }
+.profile-list button { min-height: 60px; font-size: 1.1rem; }
 .target-in { display: flex; align-items: center; gap: 6px; color: var(--muted); }
 .target-in input { width: 80px; }
 .act-list .check { margin: 0 8px; }
@@ -181,6 +184,8 @@ input[type=checkbox] { width: 26px; height: 26px; min-height: 0; accent-color: v
 .totals .pct { width: 40%; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .pbar { display: inline-block; width: calc(100% - 50px); height: 10px; background: var(--panel-2); border-radius: 5px; margin-right: 8px; vertical-align: middle; overflow: hidden; }
 .pbar span { display: block; height: 100%; }
+.group-totals { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); margin: 0 0 4px; }
+.group-totals strong { color: var(--text); font-weight: 600; }
 .sessions-detail summary { cursor: pointer; color: var(--muted); padding: 8px 0; }
 
 .timeline { position: relative; height: 28px; background: var(--panel-2); border-radius: 8px; margin: 10px 0 26px; }

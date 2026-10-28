@@ -44,6 +44,9 @@ export function download(filename: string, data: unknown) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+/** "Home Office" -> "home-office", for file names. */
+export const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'profile';
+
 export const isoDay = (ts: number) => {
   const d = new Date(ts);
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;

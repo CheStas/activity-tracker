@@ -48,6 +48,12 @@ and storage may be evicted.
 - **Tap** to switch the activity; **tap the active row** to stop all.
 - **Long-press** a row to see its sessions and to set "active since…" or "stop all since…".
 - Header icons: summary, settings, reset day (archives the day), full screen, close.
+- **Profiles** (Settings → Profiles): separate workspaces, e.g. "Work" and "Home", each with its own activities,
+  days, summary, settings (appearance too) and backup file. Only one is open at a time; switch with the header
+  Profiles button. A new profile starts with a copy of the open profile's settings.
+- **Groups** (Settings → Groups): sort activities into groups inside one profile and switch groups on or off; the
+  main screen shows only activities of groups that are on (and ungrouped ones). Several groups can be on at once,
+  and a switch stays until you change it. The summary shows a total per group.
 - **Settings → Appearance:** theme (System/Dark/Light) and button layout (Rows/Tiles/Circles).
 - Switches shorter than a minute are not counted (the time goes to the next or previous activity); change the
   threshold in **Settings → Day → Minimum switch**.
@@ -55,9 +61,11 @@ and storage may be evicted.
 - **Esc** goes back (popup → screen → main). In full screen, hold Esc to leave full screen.
 
 ## Data
+- First-run profiles, groups, activities and default settings come from [`config/seed.json`](config/seed.json).
+  Edit it before the first start (or on a fresh profile/origin); later changes are made in Settings.
 - Stored in IndexedDB in the Chromium profile `~/.local/share/activity-tracker/chromium`, for the origin
   `http://localhost:8765`. Always use the same port and profile, or you will see an empty database.
-- Back up with **Settings → Export JSON**. Restore with **Import JSON**. You can also turn on auto-export on day close.
+- Back up with **Settings → Export JSON**, one file per profile. **Import JSON** replaces only the open profile. You can also turn on auto-export on day close.
 
 ## Tests
 ```sh

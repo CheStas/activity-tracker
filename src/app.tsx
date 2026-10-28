@@ -8,7 +8,8 @@ import { Settings } from './ui/settings.tsx';
 import { Summary } from './ui/summary.tsx';
 import { DayEditor } from './ui/dayEditor.tsx';
 import { ModalHost, closeTopModal } from './ui/hooks.tsx';
-import { download, isoDay } from './ui/util.ts';
+import { openProfilePicker } from './ui/profiles.tsx';
+import { download, isoDay, slug } from './ui/util.ts';
 import './styles.css';
 
 type View = 'main' | 'settings' | 'summary' | 'day-editor';
@@ -33,6 +34,7 @@ function App() {
     <>
       {view === 'main' && (
         <Main
+          onProfiles={openProfilePicker}
           onSettings={() => setView('settings')}
           onSummary={() => setView('summary')}
           onReset={() => {
@@ -67,19 +69,20 @@ async function start() {
   } catch {}
   navigator.storage?.persist?.();
   await init();
-  applyAppearance(state.settings);
+  applyAppearance(state.profile.settings);
   subscribe((ev, payload) => {
     if (ev === 'change') {
-      applyAppearance(state.settings);
+      applyAppearance(state.profile.settings);
       syncWakeLock();
     }
-    if (ev === 'dayClosed' && payload && state.settings.autoExport) {
-      download(`activity-day-${isoDay(payload.day.startedAt)}.json`, payload);
+    if (ev === 'dayClosed' && payload && state.profile.settings.autoExport) {
+      const profile = state.profiles.length > 1 ? `${slug(payload.profile)}-` : '';
+      download(`activity-day-${profile}${isoDay(payload.day.startedAt)}.json`, payload);
     }
   });
 
   // Full screen needs a user gesture, so "start in full screen" kicks in on the first tap.
-  if (state.settings.startFullscreen) {
+  if (state.profile.settings.startFullscreen) {
     document.addEventListener('pointerdown', () => !document.fullscreenElement && toggleFullscreen(), { once: true });
   }
 
@@ -118,7 +121,7 @@ function quit() {
 let wakeLock: Promise<WakeLockSentinel | undefined> | null = null;
 async function syncWakeLock() {
   if (!('wakeLock' in navigator)) return;
-  const want = state.settings.keepAwake && document.visibilityState === 'visible';
+  const want = state.profile.settings.keepAwake && document.visibilityState === 'visible';
   if (want && !wakeLock) {
     const req: Promise<WakeLockSentinel | undefined> = navigator.wakeLock.request('screen').then(
       (lock) => {

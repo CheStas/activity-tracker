@@ -1,26 +1,28 @@
-// App state: current day, its segments, activities and settings. All mutations go through here.
+// App state: the open profile, its groups, activities, current day and segments, and settings.
+// All mutations go through here.
 import * as db from './db.ts';
 import { assign, switchTo, closeAt, totals, dayTotal, openSegment, uuid } from './timeline.ts';
-import type { Activity, Day, Segment, Settings } from './types.ts';
+import { seed, seedRecords, newActivity } from './seed.ts';
+import { profileExport, readImport, normalizeGroup } from './backup.ts';
+import type { Activity, Day, Group, Profile, Segment, Settings } from './types.ts';
 
-export const PALETTE = ['#4f8cff', '#f2994a', '#27ae60', '#bb6bd9', '#eb5757', '#2d9cdb', '#f2c94c', '#6fcf97', '#ff7eb6', '#9b8cff'];
-const SEED = ['break', 'meeting', 'task', 'pr review', 'communication', 'setup', 'prepare ticket'];
-const DEFAULT_SETTINGS: Settings = {
-  resetHour: 0, popularity: false, autoExport: false, startFullscreen: false, keepAwake: true,
-  minSwitchSec: 60, // shorter runs are absorbed by a neighbour (0 = off)
-  theme: 'system', // system | dark | light
-  layout: 'rows', // rows (horizontal) | tiles (grid) | circles
-};
+const DEFAULT_SETTINGS = seed.settings;
+const ACTIVE_PROFILE = 'activeProfileId'; // settings-store key; the only app-wide setting
 
+// Everything below `profiles` belongs to the open profile (settings are state.profile.settings);
+// init()/switchProfile() set it before anything renders.
 export const state = {
+  profiles: [] as Profile[],
+  profile: null as unknown as Profile,
+  groups: [] as Group[],
   activities: [] as Activity[], // includes archived
-  day: null as unknown as Day, // set by init() before anything renders
+  day: null as unknown as Day,
   segments: [] as Segment[], // current day
-  settings: { ...DEFAULT_SETTINGS },
 };
 
 export type StateEvent = 'change' | 'dayClosed';
 export interface DayClosed {
+  profile: string;
   day: Day;
   segments: Segment[];
 }
@@ -42,36 +44,75 @@ const queue = (fn: () => Promise<unknown>) => (writeChain = writeChain.then(fn).
 const uid = uuid;
 const opts = () => ({ dayId: state.day.id });
 
+const byOrder = <T extends { order: number }>(list: T[]) => list.sort((a, b) => a.order - b.order);
+
 export async function init() {
-  for (const key of Object.keys(DEFAULT_SETTINGS) as (keyof Settings)[]) {
-    (state.settings[key] as unknown) = await db.getSetting(key, DEFAULT_SETTINGS[key]);
+  let profiles = byOrder(await db.getAll('profiles'));
+  if (profiles.length === 0) profiles = await firstRun();
+  state.profiles = profiles;
+  const activeId = await db.getSetting<string | null>(ACTIVE_PROFILE, null);
+  await openProfile(profiles.find((p) => p.id === activeId) ?? profiles[0]);
+}
+
+/** Empty profile store: adopt records from before profiles existed (v1), or create the profiles from the seed. */
+async function firstRun(): Promise<Profile[]> {
+  const activities = (await db.getAll('activities')).filter((a) => !a.profileId);
+  const days = (await db.getAll('days')).filter((d) => !d.profileId);
+  if (activities.length || days.length) {
+    const settings = { ...DEFAULT_SETTINGS };
+    for (const key of Object.keys(settings) as (keyof Settings)[]) {
+      (settings[key] as unknown) = await db.getSetting(key, settings[key]);
+    }
+    const profile: Profile = { id: uid(), name: 'Default', order: 0, settings };
+    await db.put('profiles', profile);
+    await db.put('activities', ...activities.map((a) => ({ ...a, profileId: profile.id, groupId: null })));
+    await db.put('days', ...days.map((d) => ({ ...d, profileId: profile.id })));
+    return [profile];
   }
-  state.activities = (await db.getAll('activities')).sort((a, b) => a.order - b.order);
-  if (state.activities.length === 0) {
-    state.activities = SEED.map((name, i) => newActivity(name, i));
-    await db.put('activities', ...state.activities);
-  }
-  const days = await db.getAll('days');
-  state.day = days.find((d) => d.endedAt === null) ?? (await startDay(Date.now()));
-  state.segments = await db.segmentsOfDay(state.day.id);
+  const records = seedRecords(seed, uid);
+  await db.put('profiles', ...records.profiles);
+  await db.put('groups', ...records.groups);
+  await db.put('activities', ...records.activities);
+  return records.profiles;
+}
+
+/** Load a profile and make it the open one. All profile state is assigned at once, after loading. */
+async function openProfile(profile: Profile) {
+  await writeChain;
+  await rolling;
+  const [groups, activities, days] = await Promise.all([
+    db.getAllOf('groups', profile.id), db.getAllOf('activities', profile.id), db.getAllOf('days', profile.id),
+  ]);
+  const day = days.find((d) => d.endedAt === null) ?? (await startDay(profile.id, Date.now()));
+  const segments = await db.segmentsOfDay(day.id);
+  profile.settings = { ...DEFAULT_SETTINGS, ...profile.settings }; // settings added since the profile was stored
+  Object.assign(state, { profile, groups: byOrder(groups.map(normalizeGroup)), activities: byOrder(activities), day, segments });
   await checkRollover(Date.now());
   emit('change');
 }
 
-function newActivity(name: string, order: number): Activity {
-  return { id: uid(), name, color: PALETTE[order % PALETTE.length], order, archived: false, hiddenForDayId: null, targetMin: null };
-}
-
-async function startDay(at: number) {
-  const day: Day = { id: uid(), startedAt: at, endedAt: null, snapshot: null };
+async function startDay(profileId: string, at: number) {
+  const day: Day = { id: uid(), profileId, startedAt: at, endedAt: null, snapshot: null };
   await db.put('days', day);
   return day;
 }
 
 // ---------- derived ----------
 
-export const visibleActivities = () =>
-  state.activities.filter((a) => !a.archived && a.hiddenForDayId !== state.day.id);
+export const groupById = (id: string | null) => state.groups.find((g) => g.id === id);
+export const isGroupOn = (g: Group) => g.on;
+
+/** Main-screen buttons: not removed, not hidden today, and in no group or a group that is on (the active one always). */
+export function visibleActivities() {
+  const activeId = activeSegment()?.activityId;
+  return state.activities.filter((a) => {
+    if (a.archived || a.hiddenForDayId === state.day.id) return false;
+    const g = groupById(a.groupId);
+    return !g || isGroupOn(g) || a.id === activeId;
+  });
+}
+
+export const liveActivities = () => state.activities.filter((a) => !a.archived);
 
 export const activeSegment = () => openSegment(state.segments);
 export const todayTotals = (now = Date.now()) => totals(state.segments, now);
@@ -85,14 +126,14 @@ export function canHideToday(id: string) {
 }
 
 /** Next automatic reset boundary after the day started. */
-export function nextBoundary(startedAt: number, resetHour = state.settings.resetHour) {
+export function nextBoundary(startedAt: number, resetHour = state.profile.settings.resetHour) {
   const d = new Date(startedAt);
   d.setHours(resetHour, 0, 0, 0);
   if (d.getTime() <= startedAt) d.setDate(d.getDate() + 1);
   return d.getTime();
 }
 
-function lastBoundaryBefore(now: number, resetHour = state.settings.resetHour) {
+function lastBoundaryBefore(now: number, resetHour = state.profile.settings.resetHour) {
   const d = new Date(now);
   d.setHours(resetHour, 0, 0, 0);
   if (d.getTime() > now) d.setDate(d.getDate() - 1);
@@ -118,7 +159,7 @@ function commit(segments: Segment[]) {
 export function tap(activityId: string, now = Date.now()) {
   const open = activeSegment();
   const target = open?.activityId === activityId ? null : activityId;
-  commit(switchTo(state.segments, target, now, state.settings.minSwitchSec * 1000, opts()));
+  commit(switchTo(state.segments, target, now, state.profile.settings.minSwitchSec * 1000, opts()));
 }
 
 /** assign(activityId|null, from, to|null) clamped to the current day and now. */
@@ -158,32 +199,30 @@ async function closeDay(at: number) {
     };
     await db.replaceDaySegments(day.id, segments);
     await db.put('days', day);
-    emit('dayClosed', { day, segments });
+    emit('dayClosed', { profile: state.profile.name, day, segments });
   }
 }
 
 export async function resetDay(now = Date.now()) {
   await closeDay(now);
-  state.day = await startDay(now);
+  state.day = await startDay(state.profile.id, now);
   state.segments = [];
   emit('change');
 }
 
-/** Called every tick; closes the day at the reset boundary if it has passed. */
-let rolling = false;
+/** Called every tick; closes the day at the reset boundary if it has passed. `rolling` is the running rollover. */
+let rolling: Promise<void> | null = null;
 export async function checkRollover(now = Date.now()) {
   if (rolling) return;
   const boundary = nextBoundary(state.day.startedAt);
   if (now < boundary) return;
-  rolling = true;
-  try {
+  rolling = (async () => {
     await closeDay(boundary);
-    state.day = await startDay(Math.max(boundary, lastBoundaryBefore(now)));
+    state.day = await startDay(state.profile.id, Math.max(boundary, lastBoundaryBefore(now)));
     state.segments = [];
     emit('change');
-  } finally {
-    rolling = false;
-  }
+  })().finally(() => (rolling = null));
+  await rolling;
 }
 
 // ---------- activities ----------
@@ -196,7 +235,7 @@ function saveActivities(...list: Activity[]) {
 export function addActivities(text: string) {
   const names = text.split(/[,\n]/).map((s) => s.trim()).filter(Boolean);
   let order = Math.max(-1, ...state.activities.map((a) => a.order)) + 1;
-  const added = names.map((name) => newActivity(name, order++));
+  const added = names.map((name) => newActivity(name, order++, state.profile.id, uid()));
   state.activities.push(...added);
   if (added.length) saveActivities(...added);
 }
@@ -231,28 +270,116 @@ export function setHiddenToday(id: string, hidden: boolean) {
   updateActivity(id, { hiddenForDayId: hidden ? state.day.id : null });
 }
 
-// ---------- settings / history / backup ----------
+// ---------- groups ----------
 
-export function setSetting<K extends keyof Settings>(key: K, value: Settings[K]) {
-  state.settings[key] = value;
-  queue(() => db.setSetting(key, value));
+function saveGroups(...list: Group[]) {
+  queue(() => db.put('groups', ...list));
   emit('change');
 }
 
-/** All days (newest first) with their segments. */
+export function addGroups(text: string) {
+  const names = text.split(/[,\n]/).map((s) => s.trim()).filter(Boolean);
+  let order = Math.max(-1, ...state.groups.map((g) => g.order)) + 1;
+  const added = names.map((name): Group => ({ id: uid(), profileId: state.profile.id, name, order: order++, on: true }));
+  state.groups.push(...added);
+  if (added.length) saveGroups(...added);
+}
+
+export function updateGroup(id: string, patch: Partial<Group>) {
+  const g = groupById(id);
+  if (!g) return;
+  Object.assign(g, patch);
+  saveGroups(g);
+}
+
+export function moveGroup(id: string, dir: number) {
+  const i = state.groups.findIndex((g) => g.id === id);
+  const j = i + dir;
+  if (i < 0 || j < 0 || j >= state.groups.length) return;
+  const [a, b] = [state.groups[i], state.groups[j]];
+  [a.order, b.order] = [b.order, a.order];
+  byOrder(state.groups);
+  saveGroups(a, b);
+}
+
+/** Delete a group; its activities (removed ones too) move to "no group". */
+export function removeGroup(id: string) {
+  const members = state.activities.filter((a) => a.groupId === id);
+  for (const a of members) a.groupId = null;
+  state.groups = state.groups.filter((g) => g.id !== id);
+  queue(async () => {
+    await db.put('activities', ...members);
+    await db.del('groups', id);
+  });
+  emit('change');
+}
+
+// ---------- profiles ----------
+
+export async function switchProfile(id: string) {
+  const p = state.profiles.find((x) => x.id === id);
+  if (!p || p.id === state.profile.id) return;
+  queue(() => db.setSetting(ACTIVE_PROFILE, id));
+  await openProfile(p);
+}
+
+/** New profile without data and with a copy of the open profile's settings. */
+export function addProfile(name: string) {
+  const profile: Profile = {
+    id: uid(), name, order: Math.max(-1, ...state.profiles.map((p) => p.order)) + 1, settings: { ...state.profile.settings },
+  };
+  state.profiles.push(profile);
+  queue(() => db.put('profiles', profile));
+  emit('change');
+  return profile;
+}
+
+export function renameProfile(id: string, name: string) {
+  const p = state.profiles.find((x) => x.id === id);
+  if (!p) return;
+  p.name = name;
+  queue(() => db.put('profiles', p));
+  emit('change');
+}
+
+/** Permanently delete a profile that is not open, with all its data. */
+export function removeProfile(id: string) {
+  if (id === state.profile.id) return;
+  state.profiles = state.profiles.filter((p) => p.id !== id);
+  queue(() => db.replaceProfile(id));
+  emit('change');
+}
+
+// ---------- settings / history / backup ----------
+
+/** Settings belong to the open profile. */
+export function setSetting<K extends keyof Settings>(key: K, value: Settings[K]) {
+  const p = state.profile;
+  p.settings[key] = value;
+  queue(() => db.put('profiles', p));
+  emit('change');
+}
+
+/** All days of the open profile (newest first) with their segments. */
 export async function history() {
   await writeChain;
-  const days = (await db.getAll('days')).sort((a, b) => b.startedAt - a.startedAt);
+  const days = (await db.getAllOf('days', state.profile.id)).sort((a, b) => b.startedAt - a.startedAt);
   return Promise.all(days.map(async (d) => ({ day: d, segments: d.id === state.day.id ? state.segments : await db.segmentsOfDay(d.id) })));
 }
 
+/** The open profile as a backup file. */
 export async function exportData() {
   await writeChain;
-  return db.exportAll();
+  return profileExport(state.profile, await db.profileData(state.profile.id));
 }
 
-export async function importData(data: Partial<db.Export> | null) {
+/** Replace the open profile's data and settings with a backup file's; other profiles are untouched. */
+export async function importData(raw: unknown) {
+  const { settings, ...data } = readImport(raw, state.profile.id, uid);
   await writeChain;
-  await db.importAll(data);
-  await init();
+  await rolling;
+  const profile = { ...state.profile, settings: { ...DEFAULT_SETTINGS, ...state.profile.settings, ...settings } };
+  await db.replaceProfile(profile.id, { profile, ...data });
+  state.profiles = state.profiles.map((p) => (p.id === profile.id ? profile : p));
+  await openProfile(profile);
 }

@@ -1,6 +1,6 @@
 // Day editor: today's whole timeline; edit/delete any segment, add a range, or clear the day.
 import { useState } from 'preact/hooks';
-import { state, activityById, visibleActivities, assignRange, deleteSession, clearDay } from '../state.ts';
+import { state, activityById, liveActivities, assignRange, deleteSession, clearDay } from '../state.ts';
 import { duration } from '../timeline.ts';
 import { fmtDur, fmtRange } from './util.ts';
 import { TimePicker, clampTime } from './timePicker.tsx';
@@ -49,7 +49,7 @@ export function DayEditor({ onBack }: { onBack: () => void }) {
 }
 
 function AddRange({ close }: { close: () => void }) {
-  const acts = visibleActivities();
+  const acts = liveActivities();
   const [chosen, setChosen] = useState<string | null>(acts[0]?.id ?? null);
   const [from, setFrom] = useState(() => clampTime(Date.now() - 30 * 60000, state.day.startedAt));
   const [to, setTo] = useState(Date.now);
