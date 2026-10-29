@@ -4,6 +4,7 @@ import { useEffect, useState } from 'preact/hooks';
 import { state, liveActivities, assignRange, deleteSession, clearDay, dayList, openPastDay } from '../state.ts';
 import { duration } from '../timeline.ts';
 import type { Day } from '../types.ts';
+import { slotColor } from '../theme.ts';
 import { fmtDate, fmtDur, fmtRange } from './util.ts';
 import { TimePicker, clampTime } from './timePicker.tsx';
 import { openSessionEditor } from './activityPopup.tsx';
@@ -34,10 +35,10 @@ export function DayEditor({ onBack }: { onBack: () => void }) {
     <section class="view">
       <BackBar title={isToday ? "Today's timeline" : fmtDate(day.startedAt)} onBack={onBack}>
         <nav class="icons">
-          <button class="icon" aria-label="Previous day" title="Previous day" disabled={i <= 0} onClick={() => step(days[i - 1])}>
+          <button class="icon round" aria-label="Previous day" title="Previous day" disabled={i <= 0} onClick={() => step(days[i - 1])}>
             <Icon name="prev" />
           </button>
-          <button class="icon" aria-label="Next day" title="Next day" disabled={i < 0 || i >= days.length - 1} onClick={() => step(days[i + 1])}>
+          <button class="icon round" aria-label="Next day" title="Next day" disabled={i < 0 || i >= days.length - 1} onClick={() => step(days[i + 1])}>
             <Icon name="next" />
           </button>
         </nav>
@@ -50,7 +51,7 @@ export function DayEditor({ onBack }: { onBack: () => void }) {
             const a = lookup(seg.activityId);
             return (
               <li key={seg.id}>
-                <span class="dot" style={{ '--c': a?.color ?? '#888' }} />
+                <span class="dot" style={{ '--c': a?.color ?? 'var(--muted)' }} />
                 <span class="grow">{a?.name ?? '?'}{a?.removed && <> <span class="muted">(removed)</span></>}</span>
                 <span>{fmtRange(seg.start, seg.end)}</span>
                 <span class="muted">{fmtDur(duration(seg, now))}</span>
@@ -84,7 +85,7 @@ function AddRange({ day, close }: { day: Day; close: () => void }) {
       <h2>Add range</h2>
       <div class="chips">
         {acts.map((a) => (
-          <button key={a.id} class={`chip${chosen === a.id ? ' active' : ''}`} style={{ '--c': a.color }} onClick={() => setChosen(a.id)}>{a.name}</button>
+          <button key={a.id} class={`chip${chosen === a.id ? ' active' : ''}`} style={{ '--c': slotColor(a.colorSlot) }} onClick={() => setChosen(a.id)}>{a.name}</button>
         ))}
         <button class={`chip${chosen === null ? ' active' : ''}`} onClick={() => setChosen(null)}>idle (none)</button>
       </div>

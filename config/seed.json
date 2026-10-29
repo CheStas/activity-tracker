@@ -1,14 +1,20 @@
 {
-  "palette": ["#4f8cff", "#f2994a", "#27ae60", "#bb6bd9", "#eb5757", "#2d9cdb", "#f2c94c", "#6fcf97", "#ff7eb6", "#9b8cff"],
+  "palette": [1, 2, 3, 4, 5, 6, 7, 8],
   "settings": {
-    "theme": "system",
-    "layout": "rows",
+    "themeMode": "system",
+    "themeId": "paper",
+    "lightThemeId": "paper",
+    "darkThemeId": "graphite",
+    "layout": "tiles",
+    "popularity": false,
+    "unusedStrip": false,
+    "showTimeline": true,
+    "showGroups": true,
+    "showFooter": true,
     "startFullscreen": false,
     "keepAwake": true,
     "resetHour": 0,
     "minSwitchSec": 60,
-    "popularity": false,
-    "unusedStrip": false,
     "autoExport": false
   },
   "profiles": [

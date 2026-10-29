@@ -1,0 +1,25 @@
+{
+  "name": "Graphite",
+  "kind": "dark",
+  "order": 1,
+  "colors": {
+    "bg": "#111214",
+    "surface": "#18191C",
+    "chip": "#24262A",
+    "line": "#2A2C30",
+    "track": "#24262A",
+    "text": "#EDEDEB",
+    "muted": "#A1A4AA",
+    "onAccent": "#111214"
+  },
+  "slots": [
+    "#82A8FF",
+    "#5CD39A",
+    "#FFA36B",
+    "#C89CFF",
+    "#FF8585",
+    "#6DCFF0",
+    "#F0C850",
+    "#C4C6CA"
+  ]
+}

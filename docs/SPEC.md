@@ -27,8 +27,12 @@ A full-screen web app for a Linux PC/laptop with a touchscreen. It works like a 
 - Activities belong to a **profile** (§12) and optionally to one **group** (§13).
 - The first-run activities, groups and profiles come from the seed config file `config/seed.json` (§14), not from
   the code.
-- The list is configured in Settings. You can add one or more names at once (comma- or newline-separated), rename, recolor
+- The list is configured in Settings. You can add one or more names at once (comma- or newline-separated), rename
   and reorder activities, and set an optional daily target in minutes.
+- **Color = a theme slot.** An activity stores a slot number `colorSlot` (0–7), not a color; the theme (§16) gives
+  each slot its color, so switching the theme recolors everything. The slot is chosen in Settings → Appearance →
+  Activity colors; the Activities list shows the swatch read-only and links there. New activities get slots in the
+  seed `palette` order (§14).
 - **Names are unique** within a profile, compared trimmed and case-insensitive ("Task" = " task "). Adding or renaming
   to a name that a live or removed activity already has is refused with a message (a removed one can be restored or
   deleted instead). Existing duplicates from earlier versions are left as they are.
@@ -37,14 +41,17 @@ A full-screen web app for a Linux PC/laptop with a touchscreen. It works like a 
   - a "Removed activities" section in Settings lets you restore it, or **delete** it from that list
 - **Deleting** a removed activity (`deleted: true`) takes it off the "Removed activities" list for good: no restore
   button. The record is kept, so its tracked time still shows in the summary. Adding an activity with the same name
-  later brings that record back as a fresh button (no group, no target, at the end of the list, color kept), so the
+  later brings that record back as a fresh button (no group, no target, at the end of the list, color slot kept), so the
   old history and the new time are one activity: summary and history show no difference.
 - **Hide for today:** a per-activity toggle in Settings.
   - It can only be used when the activity has **no time recorded in the current day** and is not active.
   - It stores `hiddenForDayId = <current day id>`. The button reappears automatically on the next day (after a manual
     reset or the automatic rollover).
-- When a day closes, each activity's name and color are copied into the day's snapshot, so a later rename or removal
-  does not change history.
+- When a day closes, each activity's name and color slot are copied into the day's snapshot, so a later rename,
+  recolor or removal does not change history (the slot still follows the theme). Snapshots from before slots keep
+  their stored hex colors untouched.
+- **Upgrade:** an activity from before slots gets the nearest **Paper** slot to its old `color` (RGB distance, ties
+  to the lower slot).
 
 ## 4. Time model
 Time is stored as **segments**: `{id, dayId, activityId, start, end|null}`. Timestamps are epoch milliseconds.
@@ -93,41 +100,70 @@ from 09:00, no meeting entry. Backdating from the popup and the day editor is no
   boundary; nothing carries over into the new day. The new day starts at the boundary.
 - When the app is opened after one or more missed boundaries, the day is closed at the first missed boundary.
 
-## 6. Main screen (kept minimal)
-- **Header:**
-  - "Today · Thu, Oct 22": the label and the current date on one line, in the same style. With more than one
-    profile the label starts with the open profile's name ("Work · Thu, Oct 22")
-  - the day total, then the start time of the day's **first activity** in smaller text ("since 08:12"); nothing
-    before the first activity
-  - the active activity with its current run (one timer only: a separate "since switch" timer would always show the
-    same value). While idle it shows just "Idle", with no idle duration
-  - the clock
-  - icon buttons in one matching style (line icons in a shared rounded group): Profiles (only with more than one
-    profile, §12), Summary, Settings, Reset day, Full screen toggle (the icon reflects the state), Close app
-- **Layout** (Settings → Appearance → Buttons): **Rows** (default, described next), **Tiles**: a grid of vertical
-  tiles: one full-height column per activity, side by side (the opposite of Rows; name, total, run, target
-  stacked), scrolling sideways when they do not fit, or **Circles**: round buttons (same
-  content, stacked) wrapped and centered on the screen. With popularity sizing on, columns get 1–3× the width (never a
-  different height, so nothing wraps into a second row) and circles grow up to about 1.6× in diameter.
-- **Empty day** (nothing tracked yet today): a short welcome hint ("Tap an activity to start the day · hold one to
-  set an earlier start") and the buttons centered vertically on the screen.
-- **Theme** (Settings → Appearance → Theme): System (follows the OS) / Dark / Light. The last choice is also mirrored
-  to localStorage so the page does not flash the wrong theme on load.
-- **Buttons (Rows layout):** one horizontal row per activity in a centered column (max ≈820 px wide). Rows are not stretched to fill
-  the screen; leftover space stays empty. Each row shows the name on the left, then the target delta, today's total
-  and, for the active row, the live current run (▶). The active row is strongly highlighted. When a daily target is
-  set, the row shows "x left" or "x over".
+## 6. Main screen
+The main screen fills exactly one viewport (`height: 100vh`, min 640 px) and never scrolls inside itself (only when
+the buttons cannot fit at all does the buttons area scroll, rather than clip). The footer sits below it and is reached
+by scrolling the page. All numbers use tabular figures so they do not jitter while ticking. All colors come from the
+theme (§16). Top to bottom:
+1. **Welcome strip** (new users only, see §6.1).
+2. **Header** (surface color, bottom border):
+   - **Profile button**: the profile's initial in a square, its name and a chevron; opens the profile picker (§12).
+     Shown only with more than one profile.
+   - "Today · Wed, Oct 28" (uppercase, muted), the day total `h:mm:ss` in mono, then "since 10:03" (start of the day's
+     first activity) muted; nothing before the first activity.
+   - "Now": a color dot, the active activity's name and its current run (`m:ss` under an hour, `h:mm:ss` after).
+     While idle: a neutral dot and "Idle", no duration (one timer only: a separate "since switch" timer would always
+     show the same value).
+   - Right: "Clock" + `HH:MM`, then round 44 px icon buttons on the `chip` background: Summary, Settings, Reset day,
+     Full screen toggle (the icon reflects the state), Close app.
+3. **Buttons area** (`flex: 1`) in one of three layouts (Settings → Main screen → Buttons):
+   - **Tiles** (default): side-by-side columns that wrap on narrow screens. Each tile: color square, name and share
+     of today in %; then, while active, a "Running m:ss" chip with a pulsing dot; the total in large mono; a progress
+     bar toward the target when one is set ("8m left of 2h 00m target" / "5m over target"), otherwise the share of
+     today ("31% of today").
+   - **Rows**: a centered column, max 860 px: dot, name, target delta ("x left" / "x over"), running chip, total.
+   - **Circles**: wrapped and centered: name, total, run, target delta.
+   - The active button is filled with its slot color, text in the theme's `onAccent`; inactive buttons use the
+     surface color with a 1 px border.
+   - **Size by usage** (toggle, **off** by default): relative to the most-used activity today, tiles get flex-grow
+     1–3×, rows 1–2.2× the height, circles 1–1.6× the diameter.
+   - **Empty day** (nothing tracked yet today): the hint "Ready to start the day · Tap an activity to start tracking ·
+     hold one to set an earlier start" above the buttons.
+4. **Unused strip** (toggle, **off** by default): "Not used today" and a chip (color dot + name, min height 44 px) per
+   activity without time today; they work like the buttons (tap starts it and it moves into the buttons area,
+   long-press). Profiles saved before this setting existed (and backup files without it) get it **on exactly when
+   size by usage was on**. The same line ends with the right-aligned hint "Tap to switch · tap the running one to
+   stop · hold for sessions".
+5. **Timeline** (toggle, **on** by default; shown once something is tracked today): hour labels above (the first
+   activity's start at the left edge, then each full hour, thinned out when narrow), a 36 px bar of rounded blocks
+   with 3 px gaps, one per session plus the running one; untracked gaps between activities are `track`-colored idle
+   blocks. Blocks of 35 min or more show their duration inside; every block has a tooltip "Task · 1h 15m". It grows
+   live while an activity runs.
+6. **Group totals** (toggle, **on** by default; shown once something is tracked today): "productive 6h 51m ·
+   non-productive 1h 52m · idle 0m", centered, muted labels and values in the text color. One entry per group with
+   time today (by the activity's current group), then "no group" if any, then idle. A profile without groups shows
+   "tracked … · idle …".
+7. **More hint**: a small chevron at the bottom edge that scrolls to the footer. Hidden with the footer.
 - **Tap:** switch activity, or stop if the button is already active.
 - **Long-press (600 ms):** opens the activity popup (§7).
-- **Popularity sizing** (Settings toggle, **off** by default): row height (column width, circle size) follows today's
-  share of time.
-- **Unused to a strip** (separate Settings toggle, **off** by default): activities not used yet today move to a small
-  strip of chips at the bottom; they work like the buttons (tap, long-press). It works with or without popularity
-  sizing, so the buttons can be all equal with the unused ones in the strip. Profiles saved before this setting
-  existed (and backup files without it) get it **on exactly when popularity sizing was on**, which kept the old
-  behaviour.
 
-### 6.1 Navigation, full screen, closing
+### 6.1 Footer and welcome strip
+- **Footer** (below the fold, toggle *Show the footer*, **on** by default): three columns that wrap on narrow screens:
+  1. "Activity Tracker", "A chess clock for your work day. Your data stays in this browser.", the version.
+  2. Links: What is it?, Similar apps, Send feedback. Until those pages exist they open a placeholder popup.
+  3. **Theme quick switch**: one round swatch per installed theme (its background and two activity colors), the
+     current one ringed, "Theme · <name>" and a "More in Settings" link (opens Settings → Appearance). A tap applies the
+     theme to the open profile immediately, the same as picking it in Settings (§16).
+- **Welcome strip** (top, above the header) while the profile's `introDismissed` is false: "New here?", the first-run
+  hint, the same three links, compact theme swatches and a **Got it** button that sets `introDismissed = true` for
+  good. While it shows, the footer and the more hint are hidden (the links are at the top instead); afterwards the
+  links are in the footer and in Settings → About.
+- **Who is new:** only the profile opened on a first run (an empty database) starts with `introDismissed = false`.
+  Other seeded profiles, profiles added later, imports and upgrades from earlier versions start with `true`.
+- **Kiosk:** in `--kiosk` mode the page still scrolls by touch; *Show the footer* off hides the footer and the more
+  hint completely.
+
+### 6.2 Navigation, full screen, closing
 - **Esc = back**, following a fixed hierarchy with no loops: open popup → closes it; Day editor → where it was opened
   from (Settings, Summary, or Main via the activity popup); Settings and Summary → Main. On Main, Esc does nothing.
 - **Full screen is optional.** The ⛶ button toggles document full screen. The "Start in full screen" setting enters it
@@ -146,22 +182,32 @@ from 09:00, no meeting entry. Backdating from the popup and the day editor is no
 - **Edit sessions…:** closes the popup and opens the day editor (§8) on today.
 
 ## 8. Settings
-The settings screen shows the open profile's name in its title.
-- Profiles: open (switch to), rename, add, delete (§12)
-- Groups: add, rename, on/off, reorder, delete (§13)
-- Activities: add, rename (names unique, §3), color, group, daily target, reorder, hide for today, remove (soft),
-  restore removed, delete removed from the list
-- Appearance: theme (System/Dark/Light), button layout (Rows/Tiles/Circles)
-- Minimum switch: Off / 15 s / 30 s / 1 min (default) / 2 min / 3 min / 5 min (§4.2)
-- **Every setting below belongs to the open profile** (§12), appearance included.
-- Daily reset hour (0–23)
-- Start in full screen (toggle)
-- Keep the screen on (toggle, **on** by default; §10)
-- Popularity sizing toggle
-- Unused activities to a strip toggle (§6)
-- Auto-export a JSON file when a day closes (toggle)
-- Export the open profile to JSON, import JSON into the open profile (replaces that profile's data and settings,
-  after a confirmation; other profiles are untouched)
+A two-column page: a section list on the left (stacked above the content on narrow screens) and the content on the
+right, max 1240 px wide. Header: a round back button and "Settings · <profile>". The page uses the open profile's
+theme, so theme changes preview live. All controls are native (`button`, `input type=checkbox` inside a `label`), at
+least 44 px tall, with a visible focus ring.
+- **Section list:** Profiles, Groups, Activities, Appearance, Day, Device, Backup, About. A tap scrolls to the section;
+  the section in view is highlighted.
+- **Every setting belongs to the open profile** (§12), appearance included; imported themes are shared (§16).
+- **Profiles:** open (switch to), rename, add, delete (§12)
+- **Groups:** add, rename, on/off, reorder, delete (§13)
+- **Activities:** add, rename (names unique, §3), group, daily target, reorder, hide for today, remove (soft),
+  restore removed, delete removed from the list. The color swatch is read-only and links to Activity colors.
+- **Appearance:**
+  - **Theme:** Fixed / Follow system, a grid of theme cards (a mini preview of background, surface, a filled tile and
+    the 8 slots; name; light/dark), the selected card ringed, and an *Import theme* card last. Imported themes can be
+    renamed, exported and deleted (§16).
+  - **Activity colors:** one row per activity (live and removed-but-listed): its name in its current color and the 8
+    slot swatches (44 px targets); a tap sets the slot.
+  - **Main screen:** Buttons Tiles / Rows / Circles (segmented, with small layout icons), and toggles, each with a
+    one-line hint: Size buttons by today's usage; Move unused activities to a strip; Show today's timeline; Show group
+    totals; Show the footer (§6).
+- **Day:** automatic reset hour (0–23); minimum switch Off / 15 s / 30 s / 1 min (default) / 2 min / 3 min / 5 min
+  (§4.2); auto-export a JSON file when a day closes; Edit timeline…
+- **Device:** start in full screen; keep the screen on (**on** by default; §10)
+- **Backup:** export the open profile to JSON, import JSON into the open profile (replaces that profile's data and
+  settings, after a confirmation; other profiles are untouched)
+- **About:** What is it?, Similar apps, Send feedback (same targets as the footer), the version.
 - Link to the **day editor** (also reachable from the activity popup, §7, and from each summary day, §9): a timeline of one day's segments,
   editing and deleting segments, adding a range (activity + from + to/now), and clearing the whole day. Its bar runs
   from the first activity's start to the last activity's end (or now while one is running); idle rows appear only for
@@ -195,25 +241,28 @@ For the current day and every archived day **of the open profile**:
 
 ## 12. Profiles
 A profile is a separate workspace, like a separate copy of the app: its own activities, groups, days, segments,
-summary, backup file and **all settings** (theme, button layout, full screen, keep the screen on, reset hour, minimum
-switch, popularity sizing, unused strip, auto-export).
+summary, backup file and **all settings** (theme mode and themes, button layout, size by usage, unused strip,
+timeline, group totals, footer, welcome strip dismissed, full screen, keep the screen on, reset hour, minimum switch,
+auto-export). Imported themes are shared by all profiles (§16).
 - **Exactly one profile is open** at a time. The open profile is remembered across restarts.
 - **Switching** (header Profiles button, or Settings → Profiles → Open) loads the other profile. Nothing is stopped:
   a running activity in the profile you leave keeps counting, exactly as when the app is closed, and that profile's
   day rolls over (§5) when it is opened again. The profile picker warns when an activity is running in the open
   profile.
 - **Add:** creates a profile with no activities, groups or days, and a **copy of the open profile's settings**
-  (appearance included); change them afterwards in that profile.
+  (appearance included, welcome strip dismissed); change them afterwards in that profile.
 - **Rename:** any profile.
 - **Delete:** only a profile that is not open; after a confirmation it permanently deletes that profile's
   activities, groups, days and segments. The last profile cannot be deleted.
 - **Upgrade from a version without profiles:** all existing activities and days move into a profile named
   "Default", which also takes over the old settings.
 - **Export/import is per profile.** Export writes the open profile (name, settings, groups, activities, days,
-  segments) to `activity-tracker-<profile>-<date>.json`. Import replaces the open profile's data and settings with the
+  segments) to `activity-tracker-<profile>-<date>.json`; when the profile uses imported themes, they are embedded
+  (`themes`) and installed on import. Import replaces the open profile's data and settings with the
   file's (its name is kept) and never touches other profiles. All ids are renewed on import, so a file exported from
   one profile can be imported into another, or into a copy of the app elsewhere, without clashes. Exports from the
-  version without profiles import the same way.
+  version without profiles import the same way. Older files import with defaults for newer settings (their `theme`
+  and activity colors are mapped as on upgrade, §16).
 
 ## 13. Groups
 Groups are a soft way to separate activities inside one profile, for people who don't want to switch profiles
@@ -232,13 +281,77 @@ Groups are a soft way to separate activities inside one profile, for people who 
 `config/seed.json` holds every default that used to be in the code. It is imported at build time (so it also works
 in the single-file build); `scripts/start.sh` rebuilds when it changes. It is applied **only on first run** (an empty
 database); after that everything is edited in Settings.
-- `palette`: colors given to new activities in turn
-- `settings`: the settings of every seeded profile (`theme`, `layout`, `startFullscreen`, `keepAwake`,
-  `resetHour`, `minSwitchSec`, `popularity`, `unusedStrip`, `autoExport`); a profile may override some with its own `settings`
-- `profiles`: the profiles to create, the first one is opened. Each has a `name`, optional `settings`, optional
-  `groups` (`name`, `on` (default true), `activities`) and optional ungrouped `activities`. An activity is a name, or
-  an object `{ "name", "color"?, "targetMin"? }`.
+- `palette`: the order in which new activities get color slots, as slot numbers 1–8 or hex colors (a hex color
+  means its nearest Paper slot)
+- `settings`: the settings of every seeded profile (`themeMode`, `themeId`, `lightThemeId`, `darkThemeId`, `layout`,
+  `popularity`, `unusedStrip`, `showTimeline`, `showGroups`, `showFooter`, `startFullscreen`, `keepAwake`,
+  `resetHour`, `minSwitchSec`, `autoExport`); a profile may override some with its own `settings`
+- `profiles`: the profiles to create, the first one is opened (and shows the welcome strip). Each has a `name`,
+  optional `settings`, optional `groups` (`name`, `on` (default true), `activities`) and optional ungrouped
+  `activities`. An activity is a name, or an object `{ "name", "slot"?, "color"?, "targetMin"? }`: `slot` is 1–8;
+  `color` (hex) is still accepted and mapped to the nearest Paper slot.
+- `config/themes/*.json`: the built-in themes (§16), bundled at build time the same way.
 
 ## 15. Non-goals (for now)
 - multi-device sync
 - server-side storage
+
+## 16. Themes
+A theme is one JSON object of color tokens plus 8 activity color slots. It is applied as CSS custom properties on
+`:root` (`--bg`, `--surface`, `--chip`, `--line`, `--track`, `--text`, `--muted`, `--on-accent`, `--slot-1` …
+`--slot-8`); no component hard-codes a color.
+
+| Token | Used for | Paper |
+|---|---|---|
+| `bg` | page background | `#F5F5F2` |
+| `surface` | header, footer, inactive buttons, cards | `#FFFFFF` |
+| `chip` | icon buttons, segmented controls, welcome strip | `#EFEFEB` |
+| `line` | borders, dividers | `#E3E3DE` |
+| `track` | empty part of progress bars, timeline idle | `#ECECE7` |
+| `text` | primary text | `#1B1B1A` |
+| `muted` | labels, hints (at least 4.5:1 on `bg` and `surface`) | `#62625D` |
+| `onAccent` | text and icons on an active button or a timeline block | `#FFFFFF` |
+| `slots[0..7]` | activity colors | `#2F5FCC #17804F #B5561A #8A47C4 #C03636 #1F7799 #8C6A0A #4D4D49` |
+
+The slot order is fixed by meaning so imported palettes line up: 1 blue, 2 green, 3 orange, 4 purple, 5 red, 6 cyan,
+7 yellow, 8 neutral. Slot 1 doubles as the accent (primary buttons, checkboxes, focus ring), slot 5 as danger.
+
+**File format** (also what Export writes):
+```json
+{
+  "name": "Paper",
+  "kind": "light",
+  "colors": { "bg": "#F5F5F2", "surface": "#FFFFFF", "chip": "#EFEFEB", "line": "#E3E3DE",
+              "track": "#ECECE7", "text": "#1B1B1A", "muted": "#62625D", "onAccent": "#FFFFFF" },
+  "slots": ["#2F5FCC", "#17804F", "#B5561A", "#8A47C4", "#C03636", "#1F7799", "#8C6A0A", "#4D4D49"]
+}
+```
+- **Built-in themes** (`config/themes/*.json`, id = file name, listed by their optional `order`): Paper (light,
+  default), Graphite (dark), Dune (light), Tokyo Night, Gruvbox Dark, Nord (dark), Solarized Light. They cannot be
+  deleted.
+- **Mode** (per profile): *Fixed* (`themeMode: "fixed"`, `themeId`) or *Follow system* (`themeMode: "system"`,
+  `lightThemeId` / `darkThemeId`, switched live by `prefers-color-scheme`). Picking a theme (Settings card or footer
+  swatch) under Follow system sets the theme of the mode the system is in now. Defaults: Follow system, Paper +
+  Graphite; fixed theme Paper. A missing theme id falls back to Paper (light) / Graphite (dark).
+- **Upgrade** from the old setting: `theme` System → Follow system with Paper + Graphite; Light → Fixed Paper; Dark →
+  Fixed Graphite.
+- **No flash on load:** the resolved theme's CSS variables (both themes under Follow system) are mirrored to
+  `localStorage` and applied by an inline script in `index.html` before first paint.
+- **Import** (Settings → Appearance → Import theme):
+  - own format, as above;
+  - VS Code color theme `.json` (comments and trailing commas allowed): `editor.background` → bg,
+    `sideBar.background` → surface, `editorGroup.border` or `panel.border` → line, `editor.foreground` → text,
+    `descriptionForeground` → muted; slots from `terminal.ansiBlue`, `ansiGreen`, `ansiBrightRed` (orange),
+    `ansiMagenta`, `ansiRed`, `ansiCyan`, `ansiYellow`, `ansiBrightBlack`; `type` gives light/dark;
+  - base16 `.yaml` / `.json`: base00 bg, base01 surface, base02 line, base05 text, base04 muted; slots base0D, base0B,
+    base09, base0E, base08, base0C, base0A, base03;
+  - Alacritty `.toml` and iTerm `.itermcolors`: primary background/foreground and the 16 ANSI colors, mapped like the
+    VS Code terminal colors.
+  - Colors with alpha are blended over the background. Missing tokens are derived: surface, chip, line, track = `bg`
+    mixed toward `text` by 3 %, 7 %, 12 %, 8 %; muted = a 60 % mix, raised until it reaches 4.5:1 on `bg` and
+    `surface` (an imported muted below 4.5:1 is raised the same way). Missing slots come from Paper (light) or
+    Graphite (dark). `kind` comes from the file, else from the background's luminance.
+  - `onAccent` = white or `bg`, whichever has the better worst-case contrast against the 8 slots.
+  - After import a warning lists every slot under 3:1 against `bg`; the theme still installs and is applied.
+  - Imported themes are stored per app (IndexedDB store `themes`, shared by all profiles) and can be renamed,
+    exported and deleted. Deleting one that profiles use makes them fall back as above.

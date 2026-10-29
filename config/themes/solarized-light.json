@@ -1,0 +1,25 @@
+{
+  "name": "Solarized Light",
+  "kind": "light",
+  "order": 6,
+  "colors": {
+    "bg": "#FDF6E3",
+    "surface": "#F6EFDB",
+    "chip": "#EEE8D5",
+    "line": "#E2DBC6",
+    "track": "#EEE8D5",
+    "text": "#073642",
+    "muted": "#4F6169",
+    "onAccent": "#FDF6E3"
+  },
+  "slots": [
+    "#1F6FAE",
+    "#5F6E00",
+    "#B23F0F",
+    "#5458B0",
+    "#C42A27",
+    "#1D7D76",
+    "#8A6800",
+    "#586E75"
+  ]
+}

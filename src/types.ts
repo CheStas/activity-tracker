@@ -14,7 +14,8 @@ export interface Activity {
   profileId: string;
   groupId: string | null;
   name: string;
-  color: string;
+  /** Theme color slot 0–7 (the theme gives the color). */
+  colorSlot: number;
   order: number;
   archived: boolean;
   /** Removed for good from Settings (implies archived); the record stays so history can still name it. */
@@ -23,8 +24,11 @@ export interface Activity {
   targetMin: number | null;
 }
 
-/** Name, color and target copied into a closed day so later edits do not change history. */
-export type ActivitySnapshot = Pick<Activity, 'name' | 'color' | 'targetMin'>;
+/**
+ * Name, color slot and target copied into a closed day so later edits do not change history. Days closed before
+ * slots existed have a hex `color` instead, kept as it is.
+ */
+export type ActivitySnapshot = Pick<Activity, 'name' | 'targetMin'> & { colorSlot?: number; color?: string };
 
 /** A soft filter inside a profile: activities of a group that is off are not on the main screen. */
 export interface Group {
@@ -51,18 +55,27 @@ export interface Day {
   snapshot: { activities: Record<string, ActivitySnapshot>; total: number } | null;
 }
 
-export type Theme = 'system' | 'dark' | 'light';
+/** Fixed: one theme (themeId). System: lightThemeId / darkThemeId by prefers-color-scheme. */
+export type ThemeMode = 'fixed' | 'system';
 export type Layout = 'rows' | 'tiles' | 'circles';
 
 /** Settings of one profile. */
 export interface Settings {
   startFullscreen: boolean;
   keepAwake: boolean;
-  theme: Theme;
+  themeMode: ThemeMode;
+  themeId: string;
+  lightThemeId: string;
+  darkThemeId: string;
   layout: Layout;
   resetHour: number;
   popularity: boolean;
   unusedStrip: boolean;
+  showTimeline: boolean;
+  showGroups: boolean;
+  showFooter: boolean;
+  /** The welcome strip was dismissed (false only for the profile opened on first run). */
+  introDismissed: boolean;
   autoExport: boolean;
   minSwitchSec: number;
 }

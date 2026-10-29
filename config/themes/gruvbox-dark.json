@@ -1,0 +1,25 @@
+{
+  "name": "Gruvbox Dark",
+  "kind": "dark",
+  "order": 4,
+  "colors": {
+    "bg": "#282828",
+    "surface": "#1D2021",
+    "chip": "#32302F",
+    "line": "#3C3836",
+    "track": "#3C3836",
+    "text": "#EBDBB2",
+    "muted": "#BDAE93",
+    "onAccent": "#1D2021"
+  },
+  "slots": [
+    "#83A598",
+    "#B8BB26",
+    "#FE8019",
+    "#D3869B",
+    "#FB4934",
+    "#8EC07C",
+    "#FABD2F",
+    "#D5C4A1"
+  ]
+}

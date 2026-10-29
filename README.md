@@ -48,25 +48,33 @@ and storage may be evicted.
 - **Tap** to switch the activity; **tap the active row** to stop all.
 - **Long-press** a row to see its sessions and to set "active since…" or "stop all since…"; "Edit sessions…" opens
   the day editor, where ‹ › step to earlier days so any day can be corrected.
-- Header icons: summary, settings, reset day (archives the day), full screen, close.
+- Header: the profile button (with more than one profile), today's total, what is running, the clock, and round
+  icons for summary, settings, reset day (archives the day), full screen and close. Below the buttons: the strip of
+  unused activities, today's timeline and the group totals; scroll down for the footer (links, quick theme switch).
 - **Profiles** (Settings → Profiles): separate workspaces, e.g. "Work" and "Home", each with its own activities,
-  days, summary, settings (appearance too) and backup file. Only one is open at a time; switch with the header
-  Profiles button. A new profile starts with a copy of the open profile's settings.
+  days, summary, settings (appearance too) and backup file. Only one is open at a time; switch with the profile
+  button in the header. A new profile starts with a copy of the open profile's settings.
 - **Groups** (Settings → Groups): sort activities into groups inside one profile and switch groups on or off; the
   main screen shows only activities of groups that are on (and ungrouped ones). Several groups can be on at once,
   and a switch stays until you change it. The summary shows a total per group.
-- **Settings → Appearance:** theme (System/Dark/Light) and button layout (Rows/Tiles/Circles).
-- **Settings → Day:** size buttons by today's usage, and/or move activities not used today to a strip at the bottom.
+- **Settings → Appearance → Theme:** 7 built-in themes (Paper, Graphite, Dune, Tokyo Night, Gruvbox Dark, Nord,
+  Solarized Light), fixed or following the system's light/dark mode. **Import theme** reads our own theme files,
+  VS Code color themes, base16 (`.yaml`/`.json`), Alacritty `.toml` and iTerm `.itermcolors`. Each activity has one of
+  8 color slots (**Activity colors**), so it changes color with the theme. Built-in themes live in
+  [`config/themes/`](config/themes/).
+- **Settings → Appearance → Main screen:** buttons as Tiles/Rows/Circles, size by today's usage, unused activities
+  in a strip, and show or hide the timeline, group totals and footer.
 - Activity names are unique. A removed activity can be restored or deleted from the list; its history stays, and
   adding the same name again continues it.
 - Switches shorter than a minute are not counted (the time goes to the next or previous activity); change the
   threshold in **Settings → Day → Minimum switch**.
-- The screen stays on while the app is open; turn this off in **Settings → Day → Keep the screen on**.
+- The screen stays on while the app is open; turn this off in **Settings → Device → Keep the screen on**.
 - **Esc** goes back (popup → screen → main). In full screen, hold Esc to leave full screen.
 
 ## Data
 - First-run profiles, groups, activities and default settings come from [`config/seed.json`](config/seed.json).
   Edit it before the first start (or on a fresh profile/origin); later changes are made in Settings.
+- Imported themes are shared by all profiles; an export embeds the imported themes its profile uses.
 - Stored in IndexedDB in the Chromium profile `~/.local/share/activity-tracker/chromium`, for the origin
   `http://localhost:8765`. Always use the same port and profile, or you will see an empty database.
 - Back up with **Settings → Export JSON**, one file per profile. **Import JSON** replaces only the open profile. You can also turn on auto-export on day close.

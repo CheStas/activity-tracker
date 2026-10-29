@@ -1,0 +1,25 @@
+{
+  "name": "Nord",
+  "kind": "dark",
+  "order": 5,
+  "colors": {
+    "bg": "#2E3440",
+    "surface": "#292E39",
+    "chip": "#3B4252",
+    "line": "#3B4252",
+    "track": "#3B4252",
+    "text": "#ECEFF4",
+    "muted": "#B4BCCC",
+    "onAccent": "#2E3440"
+  },
+  "slots": [
+    "#81A1C1",
+    "#A3BE8C",
+    "#D08770",
+    "#B48EAD",
+    "#BF616A",
+    "#88C0D0",
+    "#EBCB8B",
+    "#D8DEE9"
+  ]
+}

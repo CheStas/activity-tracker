@@ -1,18 +1,20 @@
-// App state: the open profile, its groups, activities, current day and segments, and settings.
+// App state: the open profile, its groups, activities, current day and segments, settings, and the installed themes.
 // All mutations go through here.
 import * as db from './db.ts';
 import { assign, switchTo, closeAt, totals, dayTotal, openSegment, uuid } from './timeline.ts';
-import { seed, seedRecords, newActivity, nameKey, withDefaults } from './seed.ts';
+import { seed, seedRecords, newActivity, nameKey, withDefaults, normalizeActivity, DEFAULT_SETTINGS } from './seed.ts';
 import { profileExport, readImport, normalizeGroup } from './backup.ts';
+import { BUILTIN, pickThemePatch, type Theme, type ThemeFile } from './theme.ts';
 import type { Activity, Day, Group, Profile, Segment, Settings } from './types.ts';
 
-const DEFAULT_SETTINGS = seed.settings;
 const ACTIVE_PROFILE = 'activeProfileId'; // settings-store key; the only app-wide setting
 
 // Everything below `profiles` belongs to the open profile (settings are state.profile.settings);
 // init()/switchProfile() set it before anything renders.
 export const state = {
   profiles: [] as Profile[],
+  /** Built-in themes, then imported ones (shared by all profiles). */
+  themes: [...BUILTIN] as Theme[],
   profile: null as unknown as Profile,
   groups: [] as Group[],
   activities: [] as Activity[], // includes archived
@@ -44,6 +46,8 @@ export const subscribe = (fn: Listener) => {
   };
 };
 const emit = (event: StateEvent, payload?: DayClosed) => listeners.forEach((fn) => fn(event, payload));
+/** Re-render and re-apply the theme after something outside the state changed (the system light/dark mode). */
+export const notify = () => emit('change');
 
 // Serialize writes so rapid taps cannot interleave transactions.
 let writeChain: Promise<unknown> = Promise.resolve();
@@ -54,6 +58,7 @@ const uid = uuid;
 const byOrder = <T extends { order: number }>(list: T[]) => list.sort((a, b) => a.order - b.order);
 
 export async function init() {
+  state.themes = [...BUILTIN, ...(await db.getAll('themes'))];
   let profiles = byOrder(await db.getAll('profiles'));
   if (profiles.length === 0) profiles = await firstRun();
   state.profiles = profiles;
@@ -66,13 +71,14 @@ async function firstRun(): Promise<Profile[]> {
   const activities = (await db.getAll('activities')).filter((a) => !a.profileId);
   const days = (await db.getAll('days')).filter((d) => !d.profileId);
   if (activities.length || days.length) {
-    const settings = { ...DEFAULT_SETTINGS };
-    for (const key of Object.keys(settings) as (keyof Settings)[]) {
-      (settings[key] as unknown) = await db.getSetting(key, settings[key]);
+    const stored: Record<string, unknown> = {};
+    for (const key of [...Object.keys(DEFAULT_SETTINGS), 'theme']) {
+      const value = await db.getSetting<unknown>(key, undefined);
+      if (value !== undefined) stored[key] = value;
     }
-    const profile: Profile = { id: uid(), name: 'Default', order: 0, settings };
+    const profile: Profile = { id: uid(), name: 'Default', order: 0, settings: withDefaults(stored) };
     await db.put('profiles', profile);
-    await db.put('activities', ...activities.map((a) => ({ ...a, profileId: profile.id, groupId: null })));
+    await db.put('activities', ...activities.map((a) => ({ ...normalizeActivity(a), profileId: profile.id, groupId: null })));
     await db.put('days', ...days.map((d) => ({ ...d, profileId: profile.id })));
     return [profile];
   }
@@ -93,7 +99,11 @@ async function openProfile(profile: Profile) {
   const day = days.find((d) => d.endedAt === null) ?? (await startDay(profile.id, Date.now()));
   const segments = await db.segmentsOfDay(day.id);
   profile.settings = withDefaults(profile.settings); // settings added since the profile was stored
-  Object.assign(state, { profile, groups: byOrder(groups.map(normalizeGroup)), activities: byOrder(activities), day, segments, pastDay: null });
+  // Activities from before color slots: store them once with their slot.
+  const upgraded = activities.filter((a) => typeof a.colorSlot !== 'number').map(normalizeActivity);
+  if (upgraded.length) await db.put('activities', ...upgraded);
+  const all = activities.map((a) => upgraded.find((u) => u.id === a.id) ?? a);
+  Object.assign(state, { profile, groups: byOrder(groups.map(normalizeGroup)), activities: byOrder(all), day, segments, pastDay: null });
   await checkRollover(Date.now());
   emit('change');
 }
@@ -237,7 +247,7 @@ async function closeDay(at: number) {
     await db.del('days', day.id);
   } else {
     day.snapshot = {
-      activities: Object.fromEntries(state.activities.map((a) => [a.id, { name: a.name, color: a.color, targetMin: a.targetMin }])),
+      activities: Object.fromEntries(state.activities.map((a) => [a.id, { name: a.name, colorSlot: a.colorSlot, targetMin: a.targetMin }])),
       total: dayTotal(segments, at),
     };
     await db.replaceDaySegments(day.id, segments);
@@ -407,7 +417,8 @@ export async function switchProfile(id: string) {
 /** New profile without data and with a copy of the open profile's settings. */
 export function addProfile(name: string) {
   const profile: Profile = {
-    id: uid(), name, order: Math.max(-1, ...state.profiles.map((p) => p.order)) + 1, settings: { ...state.profile.settings },
+    id: uid(), name, order: Math.max(-1, ...state.profiles.map((p) => p.order)) + 1,
+    settings: { ...state.profile.settings, introDismissed: true },
   };
   state.profiles.push(profile);
   queue(() => db.put('profiles', profile));
@@ -448,19 +459,60 @@ export async function history() {
   return Promise.all(days.map(async (d) => ({ day: d, segments: d.id === state.day.id ? state.segments : await db.segmentsOfDay(d.id) })));
 }
 
-/** The open profile as a backup file. */
+/** The open profile as a backup file (with the imported themes it uses). */
 export async function exportData() {
   await writeChain;
-  return profileExport(state.profile, await db.profileData(state.profile.id));
+  return profileExport(state.profile, await db.profileData(state.profile.id), state.themes);
 }
 
 /** Replace the open profile's data and settings with a backup file's; other profiles are untouched. */
 export async function importData(raw: unknown) {
-  const { settings, ...data } = readImport(raw, state.profile.id, uid);
+  const { settings, themes, ...data } = readImport(raw, state.profile.id, uid);
   await writeChain;
   await rolling;
-  const profile = { ...state.profile, settings: { ...DEFAULT_SETTINGS, ...state.profile.settings, ...settings } };
+  if (themes.length) {
+    await db.put('themes', ...themes);
+    state.themes = [...state.themes.filter((t) => !themes.some((n) => n.id === t.id)), ...themes];
+  }
+  const profile = { ...state.profile, settings: { ...DEFAULT_SETTINGS, ...state.profile.settings, ...settings, introDismissed: true } };
   await db.replaceProfile(profile.id, { profile, ...data });
   state.profiles = state.profiles.map((p) => (p.id === profile.id ? profile : p));
   await openProfile(profile);
+}
+
+// ---------- themes ----------
+
+export const systemDark = () => matchMedia('(prefers-color-scheme: dark)').matches;
+
+/** Apply a theme to the open profile: the fixed theme, or under Follow system the one for the current mode. */
+export function pickTheme(id: string) {
+  const p = state.profile;
+  Object.assign(p.settings, pickThemePatch(p.settings, id, systemDark()));
+  queue(() => db.put('profiles', p));
+  emit('change');
+}
+
+/** Install an imported theme (shared by all profiles) and return it. */
+export function addTheme(file: ThemeFile) {
+  const theme: Theme = { ...file, id: `custom-${uid()}` };
+  state.themes.push(theme);
+  queue(() => db.put('themes', theme));
+  emit('change');
+  return theme;
+}
+
+export function renameTheme(id: string, name: string) {
+  const t = state.themes.find((x) => x.id === id && !x.builtin);
+  if (!t) return;
+  t.name = name;
+  queue(() => db.put('themes', t));
+  emit('change');
+}
+
+/** Delete an imported theme; profiles that use it fall back to Paper / Graphite. */
+export function removeTheme(id: string) {
+  if (!state.themes.some((x) => x.id === id && !x.builtin)) return;
+  state.themes = state.themes.filter((t) => t.id !== id);
+  queue(() => db.del('themes', id));
+  emit('change');
 }

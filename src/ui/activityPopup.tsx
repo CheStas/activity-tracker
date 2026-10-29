@@ -3,6 +3,7 @@ import { useState } from 'preact/hooks';
 import { state, activityById, activeSegment, assignRange, deleteSession, editSession, todayTotals } from '../state.ts';
 import { sessionsFor, duration } from '../timeline.ts';
 import type { Day, Segment } from '../types.ts';
+import { slotColor } from '../theme.ts';
 import { fmtDur, fmtHM, fmtRange, targetText } from './util.ts';
 import { TimePicker, clampTime } from './timePicker.tsx';
 import { openModal, useAppState } from './hooks.tsx';
@@ -28,7 +29,7 @@ function ActivityPopup({ activityId, close, onEditSessions }: { activityId: stri
   };
 
   return (
-    <div class="popup" style={{ '--c': a.color }}>
+    <div class="popup" style={{ '--c': slotColor(a.colorSlot) }}>
       <h2><span class="dot" />{a.name}</h2>
       <p class="muted">
         Today: {fmtHM(total)} in {list.length} session{list.length === 1 ? '' : 's'}
@@ -74,7 +75,7 @@ function SessionEditor({ seg, day, close }: { seg: Segment; day: Day; close: () 
   const [end, setEnd] = useState(seg.end ?? Date.now());
   const [running, setRunning] = useState(seg.end === null);
   return (
-    <div class="popup" style={{ '--c': a?.color ?? '#888' }}>
+    <div class="popup" style={{ '--c': a ? slotColor(a.colorSlot) : 'var(--muted)' }}>
       <h2><span class="dot" />Edit {a?.name ?? 'session'}</h2>
       <TimePicker value={start} onChange={setStart} min={day.startedAt} max={max} label="Start" />
       {max === undefined && (

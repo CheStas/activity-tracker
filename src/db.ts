@@ -1,10 +1,11 @@
 // Thin IndexedDB wrapper. Stores: profiles, groups / activities / days (index profileId), segments (index dayId),
-// settings (key/value).
+// settings (key/value), themes (imported themes, shared by all profiles).
 import type { Activity, Day, Group, Profile, Segment } from './types.ts';
 import type { ProfileData } from './backup.ts';
+import type { Theme } from './theme.ts';
 
 const DB_NAME = 'activity-tracker';
-const VERSION = 2;
+const VERSION = 3;
 
 interface Records {
   profiles: Profile;
@@ -13,6 +14,7 @@ interface Records {
   days: Day;
   segments: Segment;
   settings: { key: string; value: unknown };
+  themes: Theme;
 }
 type Store = keyof Records;
 type ProfileStore = 'groups' | 'activities' | 'days';
@@ -38,6 +40,7 @@ function open() {
         tx.objectStore('activities').createIndex('profileId', 'profileId');
         tx.objectStore('days').createIndex('profileId', 'profileId');
       }
+      if (e.oldVersion < 3) db.createObjectStore('themes', { keyPath: 'id' });
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);

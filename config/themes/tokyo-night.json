@@ -1,0 +1,25 @@
+{
+  "name": "Tokyo Night",
+  "kind": "dark",
+  "order": 3,
+  "colors": {
+    "bg": "#1A1B26",
+    "surface": "#16161E",
+    "chip": "#24283B",
+    "line": "#292E42",
+    "track": "#292E42",
+    "text": "#C0CAF5",
+    "muted": "#9AA5CE",
+    "onAccent": "#1A1B26"
+  },
+  "slots": [
+    "#7AA2F7",
+    "#9ECE6A",
+    "#FF9E64",
+    "#BB9AF7",
+    "#F7768E",
+    "#7DCFFF",
+    "#E0AF68",
+    "#A9B1D6"
+  ]
+}

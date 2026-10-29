@@ -1,9 +1,17 @@
 <!doctype html>
-<html lang="en" data-theme="system" data-layout="rows">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
   <title>Activity Tracker</title>
+  <script>
+    // The last theme (mirrored by app.tsx) before the first paint, so the page does not flash while IndexedDB loads.
+    try {
+      var themes = JSON.parse(localStorage.getItem('theme-vars'));
+      var vars = themes && (themes.fixed || (matchMedia('(prefers-color-scheme: dark)').matches ? themes.dark : themes.light));
+      for (var k in vars) document.documentElement.style.setProperty(k, vars[k]);
+    } catch (e) {}
+  </script>
   <script type="module" src="/src/app.tsx"></script>
 </head>
 <body>

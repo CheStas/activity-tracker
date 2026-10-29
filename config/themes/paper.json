@@ -1,0 +1,25 @@
+{
+  "name": "Paper",
+  "kind": "light",
+  "order": 0,
+  "colors": {
+    "bg": "#F5F5F2",
+    "surface": "#FFFFFF",
+    "chip": "#EFEFEB",
+    "line": "#E3E3DE",
+    "track": "#ECECE7",
+    "text": "#1B1B1A",
+    "muted": "#62625D",
+    "onAccent": "#FFFFFF"
+  },
+  "slots": [
+    "#2F5FCC",
+    "#17804F",
+    "#B5561A",
+    "#8A47C4",
+    "#C03636",
+    "#1F7799",
+    "#8C6A0A",
+    "#4D4D49"
+  ]
+}

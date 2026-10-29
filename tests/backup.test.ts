@@ -1,7 +1,8 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import { profileExport, readImport, normalizeGroup } from '../src/backup.ts';
-import { seed } from '../src/seed.ts';
+import { DEFAULT_SETTINGS } from '../src/seed.ts';
+import { BUILTIN, PAPER, type Theme } from '../src/theme.ts';
 import type { Activity, Group, Profile } from '../src/types.ts';
 
 const ids = () => {
@@ -9,16 +10,16 @@ const ids = () => {
   return () => `new${++n}`;
 };
 
-const profile: Profile = { id: 'pA', name: 'Work', order: 0, settings: { ...seed.settings, theme: 'dark' } };
+const profile: Profile = { id: 'pA', name: 'Work', order: 0, settings: { ...DEFAULT_SETTINGS, themeMode: 'fixed', themeId: 'custom-1', showTimeline: false } };
 const group: Group = { id: 'g1', profileId: 'pA', name: 'Dev', order: 0, on: false };
 const act = (id: string, groupId: string | null): Activity => ({
-  id, profileId: 'pA', groupId, name: id, color: '#111', order: 0, archived: false, hiddenForDayId: 'd2', targetMin: null,
+  id, profileId: 'pA', groupId, name: id, colorSlot: 3, order: 0, archived: false, hiddenForDayId: 'd2', targetMin: null,
 });
 const data = {
   groups: [group],
   activities: [act('a1', 'g1'), act('a2', 'gone')],
   days: [
-    { id: 'd1', profileId: 'pA', startedAt: 0, endedAt: 10, snapshot: { activities: { a1: { name: 'a1', color: '#111', targetMin: null } }, total: 10 } },
+    { id: 'd1', profileId: 'pA', startedAt: 0, endedAt: 10, snapshot: { activities: { a1: { name: 'a1', color: '#111111', targetMin: null } }, total: 10 } },
     { id: 'd2', profileId: 'pA', startedAt: 10, endedAt: null, snapshot: null },
   ],
   segments: [
@@ -28,11 +29,17 @@ const data = {
 };
 
 test('a profile export round-trips into another profile with new ids and intact references', () => {
-  const file = JSON.parse(JSON.stringify(profileExport(profile, data, 123)));
+  const custom: Theme = { ...PAPER, builtin: undefined, id: 'custom-1', name: 'Mine' };
+  const other: Theme = { ...custom, id: 'custom-2' };
+  const file = JSON.parse(JSON.stringify(profileExport(profile, data, [...BUILTIN, custom, other], 123)));
   assert.equal(file.kind, 'profile');
   assert.equal(file.profile.name, 'Work');
+  assert.deepEqual(file.themes.map((t: Theme) => t.id), ['custom-1']); // only the imported theme the profile uses
   const r = readImport(file, 'pB', ids());
-  assert.equal(r.settings.theme, 'dark');
+  assert.deepEqual([r.settings.themeMode, r.settings.themeId, r.settings.showTimeline], ['fixed', 'custom-1', false]);
+  assert.deepEqual(r.themes.map((t) => [t.id, t.name, t.colors.bg]), [['custom-1', 'Mine', PAPER.colors.bg]]);
+  assert.equal(r.activities[0].colorSlot, 3);
+  assert.equal(r.days[0].snapshot!.activities[r.activities[0].id].color, '#111111'); // closed days keep their hex
   const all = [...r.groups, ...r.activities, ...r.days, ...r.segments];
   assert.ok(all.every((x) => x.id.startsWith('new')));
   assert.ok([...r.groups, ...r.activities, ...r.days].every((x) => x.profileId === 'pB'));
@@ -49,12 +56,14 @@ test('a profile export round-trips into another profile with new ids and intact 
 test('an export from before profiles (v1) imports with its settings', () => {
   const v1 = {
     app: 'activity-tracker', version: 1,
-    activities: [{ ...act('a1', null), profileId: undefined, groupId: undefined }],
+    activities: [{ ...act('a1', null), colorSlot: undefined, color: '#eb5757', profileId: undefined, groupId: undefined }],
     days: [], segments: [], settings: [{ key: 'theme', value: 'light' }, { key: 'minSwitchSec', value: 30 }],
   };
   const r = readImport(v1, 'pB', ids());
-  assert.deepEqual(r.settings, { theme: 'light', minSwitchSec: 30 });
+  assert.deepEqual(r.settings, { themeMode: 'fixed', themeId: 'paper', minSwitchSec: 30 });
   assert.deepEqual([r.activities[0].profileId, r.activities[0].groupId], ['pB', null]);
+  assert.equal(r.activities[0].colorSlot, 4); // old red -> Paper red slot
+  assert.ok(!('color' in r.activities[0]));
 });
 
 test('other files are rejected', () => {

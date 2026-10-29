@@ -1,0 +1,25 @@
+{
+  "name": "Dune",
+  "kind": "light",
+  "order": 2,
+  "colors": {
+    "bg": "#EFE9DE",
+    "surface": "#F8F4EC",
+    "chip": "#EAE2D4",
+    "line": "#DDD3C2",
+    "track": "#E5DCCC",
+    "text": "#2A2219",
+    "muted": "#685C4B",
+    "onAccent": "#FFFFFF"
+  },
+  "slots": [
+    "#3D5A8C",
+    "#4F6B2A",
+    "#A0481C",
+    "#7A3F6E",
+    "#A33030",
+    "#2F6F73",
+    "#7E5E12",
+    "#55493A"
+  ]
+}

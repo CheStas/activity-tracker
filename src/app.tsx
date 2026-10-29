@@ -1,8 +1,8 @@
-// Entry point: view switching, Esc/back, full screen, quit, day rollover, wake lock, auto-export.
+// Entry point: view switching, Esc/back, theme, full screen, quit, day rollover, wake lock, auto-export.
 import { render } from 'preact';
-import { useEffect, useState } from 'preact/hooks';
-import { init, subscribe, checkRollover, resetDay, state } from './state.ts';
-import type { Settings as AppSettings } from './types.ts';
+import { useEffect, useLayoutEffect, useState } from 'preact/hooks';
+import { init, subscribe, checkRollover, resetDay, state, notify } from './state.ts';
+import { cssVars, findTheme, resolveTheme } from './theme.ts';
 import { Main } from './ui/main.tsx';
 import { Settings } from './ui/settings.tsx';
 import { Summary } from './ui/summary.tsx';
@@ -10,6 +10,13 @@ import { DayEditor } from './ui/dayEditor.tsx';
 import { ModalHost, closeTopModal } from './ui/hooks.tsx';
 import { openProfilePicker } from './ui/profiles.tsx';
 import { download, isoDay, slug } from './ui/util.ts';
+import '@fontsource/geist-sans/latin-400.css';
+import '@fontsource/geist-sans/latin-500.css';
+import '@fontsource/geist-sans/latin-600.css';
+import '@fontsource/geist-sans/latin-700.css';
+import '@fontsource/geist-mono/latin-400.css';
+import '@fontsource/geist-mono/latin-500.css';
+import '@fontsource/geist-mono/latin-600.css';
 import './styles.css';
 
 type View = 'main' | 'settings' | 'summary' | 'day-editor';
@@ -19,7 +26,10 @@ const parent: Partial<Record<View, View>> = { settings: 'main', summary: 'main' 
 
 function App() {
   const [view, setView] = useState<View>('main');
+  const [section, setSection] = useState<string>();
   const [editorFrom, setEditorFrom] = useState<View>('settings');
+  // Main and Settings scroll the page; each view starts at its top.
+  useLayoutEffect(() => window.scrollTo(0, 0), [view]);
   parent['day-editor'] = editorFrom;
   const toEditor = (from: View) => {
     setEditorFrom(from);
@@ -42,7 +52,10 @@ function App() {
       {view === 'main' && (
         <Main
           onProfiles={openProfilePicker}
-          onSettings={() => setView('settings')}
+          onSettings={(to?: string) => {
+            setSection(to);
+            setView('settings');
+          }}
           onSummary={() => setView('summary')}
           onDayEditor={() => toEditor('main')}
           onReset={() => {
@@ -52,7 +65,7 @@ function App() {
           onQuit={quit}
         />
       )}
-      {view === 'settings' && <Settings onBack={toMain} onDayEditor={() => toEditor('settings')} />}
+      {view === 'settings' && <Settings section={section} onBack={toMain} onDayEditor={() => toEditor('settings')} />}
       {view === 'summary' && <Summary onBack={toMain} onDayEditor={() => toEditor('summary')} />}
       {view === 'day-editor' && <DayEditor onBack={() => setView(editorFrom)} />}
       <ModalHost />
@@ -60,27 +73,34 @@ function App() {
   );
 }
 
-/** Theme and layout live as data attributes on <html>; CSS does the rest. */
-function applyAppearance({ theme, layout }: Pick<AppSettings, 'theme' | 'layout'>) {
-  document.documentElement.dataset.theme = theme;
-  document.documentElement.dataset.layout = layout;
+const darkQuery = matchMedia('(prefers-color-scheme: dark)');
+
+/**
+ * The open profile's theme as CSS custom properties on <html>. They are mirrored to localStorage (both themes under
+ * Follow system) so the inline script in index.html applies them before the first paint.
+ */
+function applyTheme() {
+  const s = state.profile.settings;
+  const vars = cssVars(resolveTheme(s, state.themes, darkQuery.matches));
+  const root = document.documentElement.style;
+  for (const [k, v] of Object.entries(vars)) root.setProperty(k, v);
+  const mirror = s.themeMode === 'fixed'
+    ? { fixed: vars }
+    : { light: cssVars(findTheme(state.themes, s.lightThemeId, false)), dark: cssVars(findTheme(state.themes, s.darkThemeId, true)) };
   try {
-    localStorage.setItem('appearance', JSON.stringify({ theme, layout }));
+    localStorage.setItem('theme-vars', JSON.stringify(mirror));
   } catch {}
 }
 
 async function start() {
-  // Last-used appearance first, so the page does not flash while IndexedDB loads.
-  try {
-    const cached = JSON.parse(localStorage.getItem('appearance') ?? 'null');
-    if (cached) applyAppearance(cached);
-  } catch {}
   navigator.storage?.persist?.();
   await init();
-  applyAppearance(state.profile.settings);
+  applyTheme();
+  // Follow system: switch with the OS setting (notify re-renders what shows the current theme).
+  darkQuery.addEventListener('change', notify);
   subscribe((ev, payload) => {
     if (ev === 'change') {
-      applyAppearance(state.profile.settings);
+      applyTheme();
       syncWakeLock();
     }
     if (ev === 'dayClosed' && payload && state.profile.settings.autoExport) {

@@ -2,24 +2,29 @@
 import { useEffect, useState } from 'preact/hooks';
 import { state, history, activityById, groupById, openPastDay } from '../state.ts';
 import { totals, dayTotal, gaps, duration, type Gap } from '../timeline.ts';
-import type { Day, Segment } from '../types.ts';
+import type { ActivitySnapshot, Day, Segment } from '../types.ts';
+import { slotColor } from '../theme.ts';
 import { fmtClock, fmtDate, fmtHM, fmtRange, targetText } from './util.ts';
 import { BackBar } from './icons.tsx';
 
 /** What the timeline and lists need to know about an activity (live, or from a closed day's snapshot). */
 export interface Shown {
   name: string;
+  /** A CSS color: the slot's variable, or a hex color from a day closed before slots. */
   color: string;
   targetMin?: number | null;
   removed?: boolean;
 }
 export type Lookup = (id: string) => Shown | undefined;
 
-/** Closed days use their snapshot so renamed/removed activities keep their historic name and color. */
+/** Closed days use their snapshot so renamed/removed/recolored activities keep their historic name and color. */
 export const dayLookup = (day: Day): Lookup => (id) => {
   const live = activityById(id);
-  const base = day.id === state.day.id ? live : day.snapshot?.activities?.[id] ?? live;
-  return base && { ...base, removed: live?.archived ?? !live };
+  const base: ActivitySnapshot | undefined = day.id === state.day.id ? live : day.snapshot?.activities?.[id] ?? live;
+  return base && {
+    name: base.name, targetMin: base.targetMin, removed: live?.archived ?? !live,
+    color: base.color ?? slotColor(base.colorSlot ?? 0),
+  };
 };
 
 /** Range shown for a day: first activity start to last activity end (or `now` while one runs). */
@@ -52,7 +57,7 @@ export function TimelineBar({ from, to, segments, lookup }: { from: number; to: 
           <span
             key={s.id}
             title={`${a?.name ?? '?'} ${fmtRange(s.start, s.end).replace(' – ', '–')}`}
-            style={{ left: `${((s.start - from) / span) * 100}%`, width: `${(duration(s, to) / span) * 100}%`, background: a?.color ?? '#888' }}
+            style={{ left: `${((s.start - from) / span) * 100}%`, width: `${(duration(s, to) / span) * 100}%`, background: a?.color ?? 'var(--muted)' }}
           >
             <span class="tl-dur">{fmtHM(duration(s, to))}</span>
           </span>
@@ -127,9 +132,9 @@ function DayCard({ day, segments, now, open, onEdit }: { day: Day; segments: Seg
             const pct = total ? Math.round((ms / total) * 100) : 0;
             return (
               <tr key={id}>
-                <td><span class="dot" style={{ '--c': a?.color ?? '#888' }} />{a?.name ?? '?'}{a?.removed && <> <span class="muted">(removed)</span></>}</td>
+                <td><span class="dot" style={{ '--c': a?.color ?? 'var(--muted)' }} />{a?.name ?? '?'}{a?.removed && <> <span class="muted">(removed)</span></>}</td>
                 <td class="num">{fmtHM(ms)}</td>
-                <td class="pct"><div class="pbar"><span style={{ width: `${pct}%`, background: a?.color ?? '#888' }} /></div>{pct}%</td>
+                <td class="pct"><div class="pbar"><span style={{ width: `${pct}%`, background: a?.color ?? 'var(--muted)' }} /></div>{pct}%</td>
                 <td class="muted">{targetText(a?.targetMin, ms)}</td>
               </tr>
             );
@@ -151,7 +156,7 @@ function DayCard({ day, segments, now, open, onEdit }: { day: Day; segments: Seg
             const a = lookup(s.activityId);
             return (
               <li key={s.id}>
-                <span class="dot" style={{ '--c': a?.color ?? '#888' }} /><span class="grow">{a?.name ?? '?'}</span>
+                <span class="dot" style={{ '--c': a?.color ?? 'var(--muted)' }} /><span class="grow">{a?.name ?? '?'}</span>
                 <span>{fmtRange(s.start, s.end)}</span><span class="muted">{fmtHM(duration(s, end))}</span>
               </li>
             );

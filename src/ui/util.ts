@@ -10,6 +10,12 @@ export function fmtDur(ms: number) {
   return h ? `${h}:${pad(m)}:${pad(s % 60)}` : `${m}:${pad(s % 60)}`;
 }
 
+/** Always with hours: 125000 -> "0:02:05" (day and activity totals, so the width does not jump at an hour). */
+export function fmtHMS(ms: number) {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  return `${Math.floor(s / 3600)}:${pad(Math.floor((s % 3600) / 60))}:${pad(s % 60)}`;
+}
+
 /** Coarse duration for summaries: "1h 05m", "12m". */
 export function fmtHM(ms: number) {
   const m = Math.round(Math.max(0, ms) / 60000);
