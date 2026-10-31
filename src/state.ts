@@ -4,7 +4,7 @@ import * as db from './db.ts';
 import { assign, switchTo, closeAt, totals, dayTotal, openSegment, uuid } from './timeline.ts';
 import { seed, seedRecords, newActivity, nameKey, withDefaults, normalizeActivity, DEFAULT_SETTINGS } from './seed.ts';
 import { profileExport, readImport, normalizeGroup } from './backup.ts';
-import { BUILTIN, pickThemePatch, type Theme, type ThemeFile } from './theme.ts';
+import { BUILTIN, pickThemePatch, upgradeTheme, type Theme, type ThemeFile } from './theme.ts';
 import type { Activity, Day, Group, Profile, Segment, Settings } from './types.ts';
 
 const ACTIVE_PROFILE = 'activeProfileId'; // settings-store key; the only app-wide setting
@@ -58,7 +58,7 @@ const uid = uuid;
 const byOrder = <T extends { order: number }>(list: T[]) => list.sort((a, b) => a.order - b.order);
 
 export async function init() {
-  state.themes = [...BUILTIN, ...(await db.getAll('themes'))];
+  state.themes = [...BUILTIN, ...(await db.getAll('themes')).map(upgradeTheme)];
   let profiles = byOrder(await db.getAll('profiles'));
   if (profiles.length === 0) profiles = await firstRun();
   state.profiles = profiles;

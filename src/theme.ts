@@ -1,13 +1,18 @@
-// Themes: color tokens + 8 activity color slots, the built-in set, resolving a profile's theme, and importing theme
+// Themes: color tokens + 16 activity color slots, the built-in set, resolving a profile's theme, and importing theme
 // files from other apps. Pure: no DOM, no storage.
 import type { Settings } from './types.ts';
 
 export const TOKENS = ['bg', 'surface', 'chip', 'line', 'track', 'text', 'muted', 'onAccent'] as const;
 export type Token = (typeof TOKENS)[number];
 export type ThemeColors = Record<Token, string>;
-export const SLOT_COUNT = 8;
+export const SLOT_COUNT = 16;
+/** Slots 1–8 as themes had them before 16 slots; files with only these get 9–16 derived. */
+export const BASE_SLOTS = 8;
 /** Slot meanings, fixed so imported palettes line up. */
-export const SLOT_NAMES = ['blue', 'green', 'orange', 'purple', 'red', 'cyan', 'yellow', 'neutral'];
+export const SLOT_NAMES = [
+  'blue', 'green', 'orange', 'purple', 'red', 'cyan', 'yellow', 'neutral',
+  'pink', 'teal', 'lime', 'brown', 'indigo', 'olive', 'wine', 'slate',
+];
 
 /** The theme file format (also what Export writes). */
 export interface ThemeFile {
@@ -71,8 +76,8 @@ export function contrast(a: string, b: string) {
   return (x + 0.05) / (y + 0.05);
 }
 
-/** Nearest slot (RGB distance, ties to the lower slot) of a hex color; used for colors from before slots. */
-export function nearestSlot(color: string, slots = PAPER.slots) {
+/** Nearest slot (RGB distance, ties to the lower slot) of a hex color; used for colors from before slots (slots 1–8). */
+export function nearestSlot(color: string, slots = PAPER.slots.slice(0, BASE_SLOTS)) {
   const c = rgb(color);
   let best = 0;
   let bestD = Infinity;
@@ -82,6 +87,68 @@ export function nearestSlot(color: string, slots = PAPER.slots) {
     if (d < bestD) [best, bestD] = [i, d];
   });
   return best;
+}
+
+/** CIE L*a*b* of a hex color (D65), for the ΔE distance. */
+function lab(hex: string) {
+  const [r, g, b] = rgb(hex).slice(0, 3).map((v) => {
+    const c = v / 255;
+    return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  });
+  const f = (t: number) => (t > 216 / 24389 ? Math.cbrt(t) : (24389 / 27 * t + 16) / 116);
+  const x = f((0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047);
+  const y = f(0.2126 * r + 0.7152 * g + 0.0722 * b);
+  const z = f((0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883);
+  return [116 * y - 16, 500 * (x - y), 200 * (y - z)];
+}
+
+/** CIE76 color difference; about 2 is barely visible, 15 is clearly a different color. */
+export function deltaE(a: string, b: string) {
+  const [x, y] = [lab(a), lab(b)];
+  return Math.hypot(x[0] - y[0], x[1] - y[1], x[2] - y[2]);
+}
+
+/** The color with its HSL hue turned by `deg` (saturation and lightness kept). */
+function rotateHue(hex: string, deg: number) {
+  const [r, g, b] = rgb(hex).slice(0, 3).map((v) => v / 255);
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  const d = max - min;
+  if (d === 0) return toHex([r * 255, g * 255, b * 255]);
+  const s = d / (1 - Math.abs(2 * l - 1));
+  let h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  h = (((h * 60 + deg) % 360) + 360) % 360;
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m = l - c / 2;
+  const [p, q, t] = h < 60 ? [c, x, 0] : h < 120 ? [x, c, 0] : h < 180 ? [0, c, x] : h < 240 ? [0, x, c] : h < 300 ? [x, 0, c] : [c, 0, x];
+  return toHex([(p + m) * 255, (q + m) * 255, (t + m) * 255]);
+}
+
+/**
+ * Slots 9–16 (pink, teal, lime, brown, indigo, olive, wine, slate) derived from slots 1–8 (blue, green, orange,
+ * purple, red, cyan, yellow, neutral).
+ */
+export function deriveExtraSlots([blue, green, orange, purple, red, cyan, yellow, neutral]: string[]) {
+  return [
+    rotateHue(red, -28), // pink: red turned toward magenta
+    mix(green, cyan, 0.5), // teal
+    mix(green, yellow, 0.5), // lime
+    mix(orange, '#000000', 0.25), // brown: orange darkened
+    mix(blue, purple, 0.5), // indigo
+    mix(yellow, neutral, 0.3), // olive: yellow toward neutral
+    mix(mix(red, purple, 0.5), '#000000', 0.2), // wine
+    mix(neutral, blue, 0.15), // slate
+  ];
+}
+
+/** The color moved in lightness (toward black or white, hue kept) until it reaches `ratio` against `against`. */
+export function withContrast(color: string, against: string, ratio = 4.5) {
+  const toward = luminance(against) > 0.5 ? '#000000' : '#FFFFFF';
+  let c = color;
+  for (let t = 0.05; contrast(c, against) < ratio && t <= 1; t += 0.05) c = mix(color, toward, t);
+  return c;
 }
 
 // ---------- completing a theme ----------
@@ -103,10 +170,15 @@ function readableMuted(muted: string, { bg, surface, text }: Pick<ThemeColors, '
 export const lowContrastSlots = (t: ThemeFile) => t.slots.flatMap((s, i) => (contrast(s, t.colors.bg) < 3 ? [i] : []));
 
 /**
- * A complete theme from whatever a file gave: missing tokens are derived from bg and text, missing slots come from
- * Paper or Graphite, muted is kept readable and onAccent is chosen for the slots.
+ * A complete theme from whatever a file gave: missing tokens are derived from bg and text, missing slots 1–8 come from
+ * Paper or Graphite, muted is kept readable and onAccent is chosen for slots 1–8. Slots 9–16 come from `slots` (or
+ * `candidates`: per slot a list of colors to try, taken when one differs from every other slot by ΔE 15 or more),
+ * otherwise they are derived from 1–8; they are then kept at 4.5:1 against onAccent.
  */
-export function completeTheme(name: string, given: Partial<Record<Token, string | undefined>>, slots: (string | undefined)[], kind?: string): ThemeFile {
+export function completeTheme(
+  name: string, given: Partial<Record<Token, string | undefined>>, slots: (string | undefined)[], kind?: string,
+  candidates: (string | undefined)[][] = [],
+): ThemeFile {
   const solid = (c: string | undefined, over?: string) => {
     const v = parseColor(c);
     if (!v) return undefined;
@@ -117,15 +189,23 @@ export function completeTheme(name: string, given: Partial<Record<Token, string 
   const text = solid(given.text, bg) ?? (dark ? '#EDEDEB' : '#1B1B1A');
   const fallback = builtin(dark ? DEFAULT_DARK : DEFAULT_LIGHT);
   const surface = solid(given.surface, bg) ?? mix(bg, text, 0.03);
-  const fullSlots = Array.from({ length: SLOT_COUNT }, (_, i) => solid(slots[i], bg) ?? fallback.slots[i]);
+  const base = Array.from({ length: BASE_SLOTS }, (_, i) => solid(slots[i], bg) ?? fallback.slots[i]);
+  const derived = deriveExtraSlots(base);
+  const extra: string[] = [];
+  for (let i = 0; i < SLOT_COUNT - BASE_SLOTS; i++) {
+    const own = solid(slots[BASE_SLOTS + i], bg);
+    const picked = own ?? (candidates[i] ?? []).map((c) => solid(c, bg)).find((c) => c && [...base, ...extra].every((s) => deltaE(c, s) >= 15));
+    extra.push(picked ?? derived[i]);
+  }
   const colors: ThemeColors = {
     bg, text, surface,
     chip: solid(given.chip, bg) ?? mix(bg, text, 0.07),
     line: solid(given.line, bg) ?? mix(bg, text, 0.12),
     track: solid(given.track, bg) ?? mix(bg, text, 0.08),
     muted: readableMuted(solid(given.muted, bg) ?? mix(bg, text, 0.6), { bg, surface, text }),
-    onAccent: solid(given.onAccent, bg) ?? onAccentFor(bg, fullSlots),
+    onAccent: solid(given.onAccent, bg) ?? onAccentFor(bg, base),
   };
+  const fullSlots = [...base, ...extra.map((c, i) => (solid(slots[BASE_SLOTS + i], bg) ? c : withContrast(c, colors.onAccent)))];
   return { name: name.trim() || 'Imported theme', kind: dark ? 'dark' : 'light', colors, slots: fullSlots };
 }
 
@@ -142,9 +222,15 @@ const titleCase = (s: string) => s.replace(/[-_]+/g, ' ').replace(/\b\w/g, (c) =
 
 /** Terminal palette (16 ANSI colors, 0 = black … 7 = white, 8–15 bright) -> our slot order. */
 const ANSI_SLOTS = [4, 2, 9, 5, 1, 6, 3, 8];
+/**
+ * Bright ANSI colors tried for slots 9–16: BrightMagenta -> pink, BrightCyan -> teal, BrightGreen -> lime, (brown),
+ * BrightBlue -> indigo, BrightYellow -> olive, (wine), BrightBlack / BrightWhite -> slate.
+ */
+const ANSI_EXTRA = [[13], [14], [10], [], [12], [11], [], [8, 15]];
+const ansiCandidates = (ansi: (string | undefined)[]) => ANSI_EXTRA.map((list) => list.map((i) => ansi[i]));
 
 function fromAnsi(name: string, bg: string | undefined, fg: string | undefined, ansi: (string | undefined)[]) {
-  return completeTheme(name, { bg, text: fg }, ANSI_SLOTS.map((i) => ansi[i]));
+  return completeTheme(name, { bg, text: fg }, ANSI_SLOTS.map((i) => ansi[i]), undefined, ansiCandidates(ansi));
 }
 
 function fromVsCode(name: string, file: { name?: string; type?: string; colors: Record<string, string> }) {
@@ -158,6 +244,7 @@ function fromVsCode(name: string, file: { name?: string; type?: string; colors: 
     },
     [t('Blue'), t('Green'), t('BrightRed'), t('Magenta'), t('Red'), t('Cyan'), t('Yellow'), t('BrightBlack')],
     file.type === 'hc' ? undefined : file.type,
+    [[t('BrightMagenta')], [t('BrightCyan')], [t('BrightGreen')], [], [t('BrightBlue')], [t('BrightYellow')], [], [t('BrightBlack'), t('BrightWhite')]],
   );
 }
 
@@ -236,6 +323,10 @@ export function parseThemeFile(text: string, filename = 'theme'): ThemeFile {
   throw new Error('Unknown theme file (supported: our theme .json, VS Code .json, base16 .yaml/.json, Alacritty .toml, iTerm .itermcolors)');
 }
 
+/** A stored or embedded theme with fewer than 16 slots (from before they existed) gets the rest derived. */
+export const upgradeTheme = <T extends ThemeFile>(t: T): T =>
+  t.slots.length >= SLOT_COUNT ? t : { ...t, ...completeTheme(t.name, t.colors, t.slots, t.kind) };
+
 /** A theme as a file to export: the format above, without the install id. */
 export const themeFile = ({ name, kind, colors, slots }: ThemeFile): ThemeFile => ({ name, kind, colors, slots });
 
@@ -260,7 +351,7 @@ export function pickThemePatch(s: ThemeSettings, id: string, systemDark: boolean
 
 const kebab = (s: string) => s.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
 
-/** CSS custom properties of a theme: --bg … --on-accent, --slot-1 … --slot-8, plus color-scheme. */
+/** CSS custom properties of a theme: --bg … --on-accent, --slot-1 … --slot-16, plus color-scheme. */
 export function cssVars(t: ThemeFile): Record<string, string> {
   const vars: Record<string, string> = { 'color-scheme': t.kind };
   for (const k of TOKENS) vars[`--${kebab(k)}`] = t.colors[k];

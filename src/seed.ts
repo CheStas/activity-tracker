@@ -4,12 +4,12 @@ import config from '../config/seed.json';
 import { nearestSlot, SLOT_COUNT, DEFAULT_LIGHT, DEFAULT_DARK } from './theme.ts';
 import type { Activity, Group, Profile, Settings } from './types.ts';
 
-/** `slot` is 1–8; `color` (hex, from before slots) maps to the nearest Paper slot. */
+/** `slot` is 1–16; `color` (hex, from before slots) maps to the nearest Paper slot. */
 export type SeedActivity = string | { name: string; slot?: number; color?: string; targetMin?: number | null };
 /** Settings in the seed file: all but introDismissed, which only the first-run profile has off. */
 export type SeedSettings = Omit<Settings, 'introDismissed'>;
 export interface Seed {
-  /** The order new activities get color slots in: slot numbers 1–8, or hex colors (nearest Paper slot). */
+  /** The order new activities get color slots in: slot numbers 1–16, or hex colors (nearest Paper slot). */
   palette: (number | string)[];
   settings: SeedSettings;
   profiles: {

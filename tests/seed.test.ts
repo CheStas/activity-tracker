@@ -83,6 +83,6 @@ test('activity colors from before slots map to the nearest Paper slot', () => {
 });
 
 test('palette entries become 0-based slots', () => {
-  assert.deepEqual(paletteSlots([1, 8, 9, '#8A47C4']), [0, 7, 0, 3]);
-  assert.deepEqual(paletteSlots(seed.palette), [0, 1, 2, 3, 4, 5, 6, 7]);
+  assert.deepEqual(paletteSlots([1, 8, 16, 17, '#8A47C4']), [0, 7, 15, 0, 3]);
+  assert.deepEqual(paletteSlots(seed.palette), Array.from({ length: 16 }, (_, i) => i));
 });
