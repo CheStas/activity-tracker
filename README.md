@@ -41,7 +41,11 @@ npm run dev         # Vite dev server with hot reload (a different origin: its d
 npm run build       # type-check + build to dist/
 npm test            # Vitest
 npm run typecheck
+npm run smoke       # headless Chrome walks every screen with sample data, fails on page errors
+npm run screenshots # regenerate docs/screenshots and the demo GIFs (needs ImageMagick for the GIFs)
 ```
+The driver behind the last two (and how to script your own checks) is described in
+[.claude/skills/run-activity-tracker/SKILL.md](.claude/skills/run-activity-tracker/SKILL.md).
 
 ### Optional: plain HTML file
 ```sh

@@ -2,7 +2,8 @@
 
 A tour of the app without running it, in the order you meet it. Desktop shots are 1440 × 900, phone shots 390 × 844,
 theme Paper unless noted. The data is a sample: three weeks of work days with today still running. How each screen
-behaves is in [SPEC.md](../SPEC.md); sizes and rules in [DESIGN.md](../DESIGN.md).
+behaves is in [SPEC.md](../SPEC.md); sizes and rules in [DESIGN.md](../DESIGN.md). Regenerate everything here with
+`npm run screenshots` (the captions below are hand-written).
 
 ## Demos
 
