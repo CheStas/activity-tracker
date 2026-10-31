@@ -2,8 +2,19 @@
 
 A touchscreen "chess clock" for the work day. Tap an activity to start it; tapping another one switches to it, and
 tapping the active one stops everything. It tracks today's total, a total per activity and the current run, and you can
-backdate a switch ("I actually started this at 14:30"). See [docs/SPEC.md](docs/SPEC.md) for the full spec and
-[docs/SIMILAR-TOOLS.md](docs/SIMILAR-TOOLS.md) for comparable apps.
+backdate a switch ("I actually started this at 14:30"). The Summary shows any day, week, month or range, split by
+activity or by your own categories.
+
+![The main screen: tap an activity to switch, hold it for its sessions](docs/screenshots/demo-main.gif)
+
+More screens, desktop and phone: **[docs/screenshots](docs/screenshots/README.md)**.
+
+| Summary | Phone |
+| --- | --- |
+| ![Summary: day, week grouped by Focus, month and the period picker](docs/screenshots/demo-summary.gif) | ![Phone: tiles, activity sheet, More menu and Summary](docs/screenshots/demo-phone.gif) |
+
+Docs: [docs/SPEC.md](docs/SPEC.md) (the full spec), [docs/DESIGN.md](docs/DESIGN.md) (layout rules for changes
+without a new design), [docs/SIMILAR-TOOLS.md](docs/SIMILAR-TOOLS.md) (comparable apps).
 
 ## Setup
 Preact + TypeScript, built with Vite. Install the dependencies once:
@@ -56,18 +67,24 @@ and storage may be evicted.
   button in the header. A new profile starts with a copy of the open profile's settings.
 - **Groups** (Settings → Groups): sort activities into groups inside one profile and switch groups on or off; the
   main screen shows only activities of groups that are on (and ungrouped ones). Several groups can be on at once,
-  and a switch stays until you change it. The summary shows a total per group.
+  and a switch stays until you change it.
+- **Summary** (header chart icon): a Day, Week, Month or Custom period with ‹ › and a calendar picker; figure tiles,
+  the day's timeline or one row per day, the share per activity, and the day's sessions. It ticks live while an
+  activity runs.
+- **Categories** (Settings → Categories): dimensions such as Focus (Productive / Non-productive) or Company (With
+  people / Alone). Each activity picks at most one option per dimension; the Summary can group time by any dimension,
+  with the rest shown as "Not set".
 - **Settings → Appearance → Theme:** 7 built-in themes (Paper, Graphite, Dune, Tokyo Night, Gruvbox Dark, Nord,
   Solarized Light), fixed or following the system's light/dark mode. **Import theme** reads our own theme files,
   VS Code color themes, base16 (`.yaml`/`.json`), Alacritty `.toml` and iTerm `.itermcolors`. Each activity has one of
-  8 color slots (**Activity colors**), so it changes color with the theme. Built-in themes live in
+  16 color slots (**Activity colors**), so it changes color with the theme. Built-in themes live in
   [`config/themes/`](config/themes/).
 - **Settings → Appearance → Main screen:** buttons as Tiles/Rows/Circles, size by today's usage, unused activities
   in a strip, and show or hide the timeline, group totals and footer.
 - Activity names are unique. A removed activity can be restored or deleted from the list; its history stays, and
   adding the same name again continues it.
 - Switches shorter than a minute are not counted (the time goes to the next or previous activity); change the
-  threshold in **Settings → Day → Minimum switch**.
+  threshold in **Settings → Day → Minimum switch**. The same section sets the reset hour and the first day of the week.
 - The screen stays on while the app is open; turn this off in **Settings → Device → Keep the screen on**.
 - **Esc** goes back (popup → screen → main). In full screen, hold Esc to leave full screen.
 
