@@ -29,7 +29,7 @@ A full-screen web app for a Linux PC/laptop with a touchscreen. It works like a 
   the code.
 - The list is configured in Settings. You can add one or more names at once (comma- or newline-separated), rename
   and reorder activities, and set an optional daily target in minutes.
-- **Color = a theme slot.** An activity stores a slot number `colorSlot` (0–7), not a color; the theme (§16) gives
+- **Color = a theme slot.** An activity stores a slot number `colorSlot` (0–15), not a color; the theme (§16) gives
   each slot its color, so switching the theme recolors everything. The slot is chosen in Settings → Appearance →
   Activity colors; the Activities list shows the swatch read-only and links there. New activities get slots in the
   seed `palette` order (§14).
@@ -47,11 +47,12 @@ A full-screen web app for a Linux PC/laptop with a touchscreen. It works like a 
   - It can only be used when the activity has **no time recorded in the current day** and is not active.
   - It stores `hiddenForDayId = <current day id>`. The button reappears automatically on the next day (after a manual
     reset or the automatic rollover).
-- When a day closes, each activity's name and color slot are copied into the day's snapshot, so a later rename,
-  recolor or removal does not change history (the slot still follows the theme). Snapshots from before slots keep
-  their stored hex colors untouched.
-- **Upgrade:** an activity from before slots gets the nearest **Paper** slot to its old `color` (RGB distance, ties
-  to the lower slot).
+- When a day closes, each activity's name and target are copied into the day's snapshot, so a later rename does not
+  change history. The **color always follows the activity's current slot**, also for days closed before this rule
+  (their stored slot or hex color is no longer used).
+- An activity can have one option per category dimension (`categories`, §17); they only matter in the Summary.
+- **Upgrade:** an activity from before slots gets the nearest **Paper** slot (1–8) to its old `color` (RGB distance,
+  ties to the lower slot).
 
 ## 4. Time model
 Time is stored as **segments**: `{id, dayId, activityId, start, end|null}`. Timestamps are epoch milliseconds.
@@ -116,20 +117,26 @@ theme (§16). Top to bottom:
      show the same value).
    - Right: "Clock" + `HH:MM`, then round 44 px icon buttons on the `chip` background: Summary, Settings, Reset day,
      Full screen toggle (the icon reflects the state), Close app.
-3. **Buttons area** (`flex: 1`) in one of three layouts (Settings → Main screen → Buttons):
-   - **Tiles** (default): side-by-side columns that wrap on narrow screens. Each tile: color square, name and share
-     of today in %; then, while active, a "Running m:ss" chip with a pulsing dot; the total in large mono; a progress
-     bar toward the target when one is set ("8m left of 2h 00m target" / "5m over target"), otherwise the share of
-     today ("31% of today").
-   - **Rows**: a centered column, max 860 px: dot, name, target delta ("x left" / "x over"), running chip, total.
-   - **Circles**: wrapped and centered: name, total, run, target delta.
-   - The active button is filled with its slot color, text in the theme's `onAccent`; inactive buttons use the
-     surface color with a 1 px border.
+3. **Buttons area** (`flex: 1`) in one of three layouts (Settings → Main screen → Buttons). Every layout shows the
+   same elements: color square, name (one line, ellipsis), share of today in %, a running chip (pulsing dot + run)
+   while active, the total in mono, and the progress with its text.
+   - Progress = toward the target when the activity has one ("8m left of 2h 00m target" / "5m over target"),
+     otherwise the share of today ("31% of today").
+   - **Tiles** (default): side-by-side columns that wrap. Square top-left 12 px, name 19 px, % top-right, total 52 px,
+     a 6 px bar full width.
+   - **Rows**: a centered column, max 860 px: square, name 20 px, % after it, running chip and total 32 px on the
+     right; underneath a 6 px bar with the progress text on its right.
+   - **Circles**: square and name 17 px above the total 32 px, running chip under it, the short progress text
+     ("8m left" / "31% of today") at the bottom, and a 2.5 px progress ring around the circle, from 12 o'clock
+     clockwise.
+   - The active button is filled with its slot color; its text, square, bar and ring are `onAccent` (tracks at 28 %
+     `onAccent`). Inactive buttons use the surface color with a 1 px border.
    - **Size by usage** (toggle, **off** by default): relative to the most-used activity today, tiles get flex-grow
-     1–3×, rows 1–2.2× the height, circles 1–1.6× the diameter.
-   - **Empty day** (nothing tracked yet today): the hint "Ready to start the day · Tap an activity to start tracking ·
-     hold one to set an earlier start" above the buttons.
-4. **Unused strip** (toggle, **off** by default): "Not used today" and a chip (color dot + name, min height 44 px) per
+     1–3×, rows 92 px × 1–2.2 high, circles 210 px × 1–1.6 wide.
+   - **Empty day** (nothing tracked yet today): one line "**Ready to start the day** · Tap an activity to start
+     tracking · hold one to set an earlier start" above the buttons. The unused strip is suspended (every activity is
+     a button), size by usage is ignored, and the timeline, group totals and "since" are hidden.
+4. **Unused strip** (toggle, **off** by default; suspended on an empty day): "Not used today" and a chip (color dot + name, min height 44 px) per
    activity without time today; they work like the buttons (tap starts it and it moves into the buttons area,
    long-press). Profiles saved before this setting existed (and backup files without it) get it **on exactly when
    size by usage was on**. The same line ends with the right-aligned hint "Tap to switch · tap the running one to
@@ -146,6 +153,12 @@ theme (§16). Top to bottom:
 7. **More hint**: a small chevron at the bottom edge that scrolls to the footer. Hidden with the footer.
 - **Tap:** switch activity, or stop if the button is already active.
 - **Long-press (600 ms):** opens the activity popup (§7).
+- **Phone (below 760 px wide):** the header wraps; the profile button shows only the initial and the clock is hidden.
+  Summary and Settings stay; Reset day, Full screen and Close app move into a **⋯ More** button that opens a
+  bottom-sheet menu (56 px rows, then Cancel; each item opens its own flow). Tiles: two per row (basis 150 px), min
+  height 140 px, padding 16 px, total 32 px. Rows: padding 12 × 16 px, total 24 px. Circles: 62 % of the desktop
+  diameter, total 22 px. The buttons area scrolls inside the viewport; header, timeline and totals stay put. The
+  timeline labels only every second hour; the "Tap to switch" hint is hidden. The page never scrolls sideways.
 
 ### 6.1 Footer and welcome strip
 - **Footer** (below the fold, toggle *Show the footer*, **on** by default): three columns that wrap on narrow screens:
@@ -169,16 +182,24 @@ theme (§16). Top to bottom:
 - **Full screen is optional.** The ⛶ button toggles document full screen. The "Start in full screen" setting enters it
   on the first tap, because browsers require a user gesture. While in full screen, Esc is captured (Keyboard Lock) so
   it keeps meaning "back"; **hold Esc** (about 2 s) to leave full screen.
-- **⏻ Close app:** asks for confirmation, then closes the window, which also stops `start.sh` and its server. A
-  running activity keeps counting while the app is closed (time is derived from the start timestamp). When the
-  browser refuses to let the page close the window (a normal tab or a `file://` page), a hint says to use
-  Alt+F4 / Ctrl+W.
+- **⏻ Close app:** asks first ("Close Activity Tracker?" · "Task keeps counting while the app is closed. Open the app
+  again to stop it or switch." / idle: "Nothing is running." · Cancel / **Close app**), then closes the window, which
+  also stops `start.sh` and its server. A running activity keeps counting while the app is closed (time is derived
+  from the start timestamp). When the browser refuses to let the page close the window (a normal tab or a `file://`
+  page), the dialog "Close the window yourself" says to use Alt+F4 / Ctrl+W.
+- **Reset day** asks first: "Reset the day?" · "Task stops now. Wed, Oct 28 closes with 8h 43m tracked and a new day
+  starts. You can still edit the closed day from Summary." (without a running activity the first sentence is
+  dropped) · Cancel / **Reset day** (danger).
 
 ## 7. Activity popup (long-press)
-- Lists today's sessions for the activity (start–end and duration), each with edit and delete actions.
-- **Active since…:** a touch time picker with quick offsets (−5/−10/−15/−30 min, ±1/±5/±15 adjustments, now). It calls
-  `assign(X, t, null)`.
-- **Stop all since…:** calls `assign(null, t, null)`.
+- Header: color square, name, "Today 3h 38m in 5 sessions · running" (and the target delta when set).
+- Today's sessions of the activity **in time order**, the running one last ("21:13 – now ● 0:03" in the activity
+  color), each with Edit and Delete (danger color). **Delete asks first:** "Delete this session?" · "Task · 15:23 –
+  15:37 (13m 52s). This time becomes idle. You can add it back in the day editor." · Cancel / **Delete**. The day
+  editor's Delete asks the same.
+- **Correct the timeline:** −15 −5 −1 [time] +1 +5 +15 (±1 hidden on a phone), quick chips now / 5m / 10m / 15m / 30m /
+  60m ago (the matching one is marked), then "▶ Task active since 21:05" (activity color fill, `assign(X, t, null)`)
+  and "■ Stop all since 21:05" (`assign(null, t, null)`).
 - **Edit sessions…:** closes the popup and opens the day editor (§8) on today.
 
 ## 8. Settings
@@ -186,24 +207,31 @@ A two-column page: a section list on the left (stacked above the content on narr
 right, max 1240 px wide. Header: a round back button and "Settings · <profile>". The page uses the open profile's
 theme, so theme changes preview live. All controls are native (`button`, `input type=checkbox` inside a `label`), at
 least 44 px tall, with a visible focus ring.
-- **Section list:** Profiles, Groups, Activities, Appearance, Day, Device, Backup, About. A tap scrolls to the section;
-  the section in view is highlighted.
+- **Section list:** Profiles, Groups, Categories, Activities, Appearance, Day, Device, Backup, About. A tap scrolls to
+  the section; the section in view is highlighted.
 - **Every setting belongs to the open profile** (§12), appearance included; imported themes are shared (§16).
 - **Profiles:** open (switch to), rename, add, delete (§12)
 - **Groups:** add, rename, on/off, reorder, delete (§13)
+- **Categories** (§17): an intro line, then one card per dimension: a header with the name field, "5 of 7 activities
+  set", ↑ ↓ and Delete; one row per option with a 44 px color button (opens the 16 swatches in place), name field,
+  "3 activities", ↑ ↓, Delete; an "Add an option" field + Add. Then a "New dimension" field + **Add dimension**.
+  Empty state: "No categories yet", an example, **Add "Focus" example** and **Add an empty dimension**.
 - **Activities:** add, rename (names unique, §3), group, daily target, reorder, hide for today, remove (soft),
-  restore removed, delete removed from the list. The color swatch is read-only and links to Activity colors.
+  restore removed, delete removed from the list. The color swatch is read-only and links to Activity colors. Under
+  each activity, one picker per dimension, labelled with its name: 2–3 options → a segmented control (the options +
+  "Not set", each with its color dot); 4 or more → a chip that opens a list.
 - **Appearance:**
   - **Theme:** Fixed / Follow system, a grid of theme cards (a mini preview of background, surface, a filled tile and
-    the 8 slots; name; light/dark), the selected card ringed, and an *Import theme* card last. Imported themes can be
+    the 16 slots; name; light/dark), the selected card ringed, and an *Import theme* card last. Imported themes can be
     renamed, exported and deleted (§16).
-  - **Activity colors:** one row per activity (live and removed-but-listed): its name in its current color and the 8
-    slot swatches (44 px targets); a tap sets the slot.
+  - **Activity colors:** one row per activity (live and removed-but-listed): its name in its current color and the 16
+    slot swatches (44 px targets; two rows of 8 below 760 px); a tap sets the slot.
   - **Main screen:** Buttons Tiles / Rows / Circles (segmented, with small layout icons), and toggles, each with a
     one-line hint: Size buttons by today's usage; Move unused activities to a strip; Show today's timeline; Show group
     totals; Show the footer (§6).
-- **Day:** automatic reset hour (0–23); minimum switch Off / 15 s / 30 s / 1 min (default) / 2 min / 3 min / 5 min
-  (§4.2); auto-export a JSON file when a day closes; Edit timeline…
+- **Day:** automatic reset hour (0–23); **Week starts on** System (from the locale, Monday when it says nothing) /
+  Monday / Sunday / Saturday, used by the Week period, the calendar and the heatmap; minimum switch Off / 15 s / 30 s
+  / 1 min (default) / 2 min / 3 min / 5 min (§4.2); auto-export a JSON file when a day closes; Edit timeline…
 - **Device:** start in full screen; keep the screen on (**on** by default; §10)
 - **Backup:** export the open profile to JSON, import JSON into the open profile (replaces that profile's data and
   settings, after a confirmation; other profiles are untouched)
@@ -219,16 +247,55 @@ least 44 px tall, with a visible focus ring.
   - Leaving the editor always returns it to today. The summary has no edit controls of its own, only the link.
 
 ## 9. Summary
-For the current day and every archived day **of the open profile**:
-- total tracked time, the start of the first activity and the end of the last one (or "now" while running), and
-  idle time (untracked gaps between the first start and the last end; time before the first or after the last
-  activity is never idle)
-- per activity: total, percentage, and target delta
-- per group (when the profile has groups): total of its activities, plus "no group"
-- a horizontal timeline bar over the same range, one colored block per session with its duration inside ("1h 05m",
-  "12m"; hidden when the block is too narrow; the day editor's bar shows the same), and the session list with idle rows for the gaps between activities
-- an **Edit sessions…** button next to the session list's toggle opens the day editor on that day; back returns to
-  the summary, which reloads
+One scrolling page for a **period** of the open profile, every block a full-width card (max 1240 px), in this order.
+The period (Day, Week, Month, Custom) changes what each block shows, not the order. Durations read "8h 43m".
+1. **Header:** back, "Summary · Work", and the period switcher Day · Week · Month · Custom on the right (it wraps
+   under the title below 600 px). The last used period is remembered (`summaryPeriod`).
+2. **Period card:**
+   - ‹ [period label ▾] ›, a jump chip when not on the current period ("Today", "This week", "This month", "Last 7
+     days" for custom), and **Group by** on the right (Activity · each dimension; hidden without dimensions; scrolls
+     sideways in its own box on a phone). ‹ › step by a day, week or month; a custom range by its own length.
+   - Labels: "Wed, Oct 28", "Today · Thu, Oct 29", "Oct 26 – Nov 1", "October 2026", "Oct 22 – Oct 28" + "7 days ·
+     Last 7 days" (the sub-line hides on a phone).
+   - **Folded calendar:** Day and Week show the 7-day strip of the week (the day ringed); Custom up to 14 days one cell
+     per day; Month and longer (up to 62 days) a compact month grid (30 px cells). Cells show the day and its hours
+     ("9h14") or "—"; a tap opens that day. Cells are shaded: accent at 18–100 % by the day's total relative to
+     max(longest day in view, 8h), text in `onAccent` above 55 %.
+   - **Picker** (tap the label): the card expands in place to a month calendar (44 px cells, week start from
+     Settings) and the quick ranges Today, Yesterday, This week, Last week, Last 7 days, This month, Last month, Last
+     30 days, then Cancel / Apply. First tap sets the start, second the end (both included); the hint says which tap
+     is next and the label shows the range being picked ("Oct 12 – …", "pick the last day"). Tracked days are shaded.
+     A picked single day becomes a Day, an exact calendar week or month that period, anything else Custom.
+3. **Figure tiles** (min 150 px, two per row on a phone): Day: Total tracked · First – last ("09:48 – now") · Idle ·
+   Switches (sessions − 1; sub: sessions). Week, Month, Custom: Total tracked · Avg per tracked day (sub: "5 tracked
+   days") · vs previous period ("+41h 51m", sub "previous: 2h 46m"; "—" and "no data in September" when it is empty).
+4. **Timeline** (Day): 44 px blocks from the first start to the last end (or now), idle gaps as `track` blocks,
+   durations inside blocks of 40 min or more, hour labels with the start and end at the edges. Tap a block: it gets
+   a ring and the card shows "Task · 12:14 – 13:29 · 1h 15m"; tap again to clear. The running block pulses.
+5. **Per day** (Week, Month, Custom): a row per day: day name and date, a bar on a shared clock axis (08:00–20:00
+   widened to the earliest start and latest end, full hours, 4 labels), blocks at their real times colored by Group
+   by, durations inside blocks of 70 min or more (not in Month), the total. Dashed lines mark the average start and
+   end (explained in the card hint; hidden with fewer than 2 tracked days). Two or more empty days in a row collapse
+   into one dashed line "Sat 24 – Sun 25 · nothing tracked". A tap opens a detail strip (each group's time that day
+   and "Open day ›"); one at a time. Rows are 44 px (bar 28 px), in Month 36 px (bar 20 px). Ranges longer than 45 days
+   show one row per week (stacked totals by group, no time axis).
+6. **Share:** a 160 px donut (total in the middle) and a table Name · Total · Share · *Avg / day* (Week, Month,
+   Custom) or *Target* (Day: "11m left" / "5m over" in the danger color, with a thin bar). By activity: one row per
+   activity, largest first, "(removed)" after removed ones, and for activities with a target "target 2h 00m · met on 3
+   of 5 days". By a dimension: one row per option plus "Not set", each expandable to its activities. On a phone the
+   4th column is hidden and the donut sits above the table.
+7. **Sessions** (Day): "Sessions · 20 sessions", the checkbox "Group by <dimension>" (when Group by is a dimension; on
+   by default, remembered as `summaryGroupLog`), and **Edit sessions…** (opens the day editor on that day; back returns
+   to the summary). Rows: color square, name, "12:14 – 13:29", duration; idle rows have a dashed empty square. Grouped:
+   a header per option with its subtotal, idle last.
+- **Empty period:** the tiles show 0h 00m / — / —; per day, share and sessions are replaced by one dashed card
+  "Nothing tracked from Oct 1 to Oct 7" with **Last 7 days** and **Main screen**.
+- **Computing:** a day runs from reset hour to reset hour; a session over it counts partly to each day, and a day is
+  labelled with the date it starts on, so changing the reset hour recomputes every period. A tracked day has any
+  time; averages divide by tracked days. Idle = gaps between the first start and the last end. Past sessions use the
+  activity's **current** color and **current** categories; names on a Day come from that day's snapshot. While an
+  activity runs, a period containing today ticks live every second. Group by is remembered per profile
+  (`summaryGroupBy`; back to Activity when the dimension is deleted).
 
 ## 10. Keeping the screen awake
 - Settings → **Keep the screen on** (default on). While it is on and the page is visible, the app holds a screen Wake
@@ -242,13 +309,17 @@ For the current day and every archived day **of the open profile**:
 ## 12. Profiles
 A profile is a separate workspace, like a separate copy of the app: its own activities, groups, days, segments,
 summary, backup file and **all settings** (theme mode and themes, button layout, size by usage, unused strip,
-timeline, group totals, footer, welcome strip dismissed, full screen, keep the screen on, reset hour, minimum switch,
-auto-export). Imported themes are shared by all profiles (§16).
+timeline, group totals, footer, welcome strip dismissed, full screen, keep the screen on, reset hour, week start,
+minimum switch, auto-export, and the Summary's period, Group by and log grouping) and its own categories (§17).
+Imported themes are shared by all profiles (§16).
 - **Exactly one profile is open** at a time. The open profile is remembered across restarts.
 - **Switching** (header Profiles button, or Settings → Profiles → Open) loads the other profile. Nothing is stopped:
   a running activity in the profile you leave keeps counting, exactly as when the app is closed, and that profile's
-  day rolls over (§5) when it is opened again. The profile picker warns when an activity is running in the open
-  profile.
+  day rolls over (§5) when it is opened again.
+- **Profile switcher** (header button): "Switch profile"; when an activity runs in the open profile, a notice "**Task
+  is running in Work.** It keeps counting while another profile is open."; one 64 px row per profile: initial square,
+  name, a status line with a dot ("Task running · 3h 38m today" / "Idle · last used Tue, Oct 27" / "Nothing tracked
+  yet") and "Open" (the current one, ringed) or "Switch"; then the link "Add, rename or delete profiles in Settings".
 - **Add:** creates a profile with no activities, groups or days, and a **copy of the open profile's settings**
   (appearance included, welcome strip dismissed); change them afterwards in that profile.
 - **Rename:** any profile.
@@ -256,13 +327,13 @@ auto-export). Imported themes are shared by all profiles (§16).
   activities, groups, days and segments. The last profile cannot be deleted.
 - **Upgrade from a version without profiles:** all existing activities and days move into a profile named
   "Default", which also takes over the old settings.
-- **Export/import is per profile.** Export writes the open profile (name, settings, groups, activities, days,
-  segments) to `activity-tracker-<profile>-<date>.json`; when the profile uses imported themes, they are embedded
+- **Export/import is per profile.** Export writes the open profile (name, settings, groups, categories, activities
+  with their options, days, segments) to `activity-tracker-<profile>-<date>.json`; when the profile uses imported themes, they are embedded
   (`themes`) and installed on import. Import replaces the open profile's data and settings with the
   file's (its name is kept) and never touches other profiles. All ids are renewed on import, so a file exported from
   one profile can be imported into another, or into a copy of the app elsewhere, without clashes. Exports from the
   version without profiles import the same way. Older files import with defaults for newer settings (their `theme`
-  and activity colors are mapped as on upgrade, §16).
+  and activity colors are mapped as on upgrade, §16), no categories, and 8-slot themes completed to 16.
 
 ## 13. Groups
 Groups are a soft way to separate activities inside one profile, for people who don't want to switch profiles
@@ -281,14 +352,16 @@ Groups are a soft way to separate activities inside one profile, for people who 
 `config/seed.json` holds every default that used to be in the code. It is imported at build time (so it also works
 in the single-file build); `scripts/start.sh` rebuilds when it changes. It is applied **only on first run** (an empty
 database); after that everything is edited in Settings.
-- `palette`: the order in which new activities get color slots, as slot numbers 1–8 or hex colors (a hex color
-  means its nearest Paper slot)
+- `palette`: the order in which new activities get color slots, as slot numbers 1–16 or hex colors (a hex color
+  means its nearest Paper slot); new activities take the next slot in this order and wrap around
 - `settings`: the settings of every seeded profile (`themeMode`, `themeId`, `lightThemeId`, `darkThemeId`, `layout`,
   `popularity`, `unusedStrip`, `showTimeline`, `showGroups`, `showFooter`, `startFullscreen`, `keepAwake`,
-  `resetHour`, `minSwitchSec`, `autoExport`); a profile may override some with its own `settings`
+  `resetHour`, `minSwitchSec`, `autoExport`, `weekStart` (`"system"` or 0–6, 0 = Sunday), `summaryGroupBy`
+  (`"activity"` or a dimension id), `summaryGroupLog`, `summaryPeriod` (`day` / `week` / `month` / `custom`)); a
+  profile may override some with its own `settings`
 - `profiles`: the profiles to create, the first one is opened (and shows the welcome strip). Each has a `name`,
   optional `settings`, optional `groups` (`name`, `on` (default true), `activities`) and optional ungrouped
-  `activities`. An activity is a name, or an object `{ "name", "slot"?, "color"?, "targetMin"? }`: `slot` is 1–8;
+  `activities`. An activity is a name, or an object `{ "name", "slot"?, "color"?, "targetMin"? }`: `slot` is 1–16;
   `color` (hex) is still accepted and mapped to the nearest Paper slot.
 - `config/themes/*.json`: the built-in themes (§16), bundled at build time the same way.
 
@@ -297,9 +370,9 @@ database); after that everything is edited in Settings.
 - server-side storage
 
 ## 16. Themes
-A theme is one JSON object of color tokens plus 8 activity color slots. It is applied as CSS custom properties on
+A theme is one JSON object of color tokens plus 16 activity color slots. It is applied as CSS custom properties on
 `:root` (`--bg`, `--surface`, `--chip`, `--line`, `--track`, `--text`, `--muted`, `--on-accent`, `--slot-1` …
-`--slot-8`); no component hard-codes a color.
+`--slot-16`); no component hard-codes a color.
 
 | Token | Used for | Paper |
 |---|---|---|
@@ -312,9 +385,26 @@ A theme is one JSON object of color tokens plus 8 activity color slots. It is ap
 | `muted` | labels, hints (at least 4.5:1 on `bg` and `surface`) | `#62625D` |
 | `onAccent` | text and icons on an active button or a timeline block | `#FFFFFF` |
 | `slots[0..7]` | activity colors | `#2F5FCC #17804F #B5561A #8A47C4 #C03636 #1F7799 #8C6A0A #4D4D49` |
+| `slots[8..15]` | activity and category option colors | `#B8336A #0F7A6E #4F7A12 #7A4E2D #4338CA #6B6A1F #7D1F3A #5B6472` |
 
 The slot order is fixed by meaning so imported palettes line up: 1 blue, 2 green, 3 orange, 4 purple, 5 red, 6 cyan,
-7 yellow, 8 neutral. Slot 1 doubles as the accent (primary buttons, checkboxes, focus ring), slot 5 as danger.
+7 yellow, 8 neutral, 9 pink, 10 teal, 11 lime, 12 brown, 13 indigo, 14 olive, 15 wine, 16 slate. Slot 1 doubles as
+the accent (primary buttons, checkboxes, focus ring), slot 5 as danger. With more activities than slots, colors
+repeat; names are always shown next to colors.
+
+Slots 9–16 of the built-in themes:
+
+| Theme | 9 pink | 10 teal | 11 lime | 12 brown | 13 indigo | 14 olive | 15 wine | 16 slate |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Paper | `#B8336A` | `#0F7A6E` | `#4F7A12` | `#7A4E2D` | `#4338CA` | `#6B6A1F` | `#7D1F3A` | `#5B6472` |
+| Graphite | `#FF8AC0` | `#45D0BE` | `#B6E36B` | `#D9A57C` | `#A7A9FF` | `#C9C46E` | `#C98A95` | `#9AA3B2` |
+| Dune | `#9B3C62` | `#2E6E66` | `#5A7020` | `#6B4428` | `#4B4A9A` | `#6E6A2A` | `#6E2236` | `#5A6170` |
+| Tokyo Night | `#f7a1c9` | `#73daca` | `#c3e88d` | `#d6a57c` | `#9aa5ff` | `#cfc97a` | `#c78a99` | `#8f99c7` |
+| Gruvbox Dark | `#e8a0c0` | `#7ec4b0` | `#c6d66a` | `#c49a6c` | `#a3a8e0` | `#c8b860` | `#c48a90` | `#a89984` |
+| Nord | `#e5a6c4` | `#8fbcbb` | `#c5d89a` | `#c8a582` | `#a3aee0` | `#cdc58a` | `#c4919a` | `#9aa5b8` |
+| Solarized Light | `#b0306a` | `#1b6e66` | `#4d6a00` | `#7a4a1e` | `#3f46a8` | `#6a6400` | `#7a1f3a` | `#4e5f66` |
+
+All of them reach 4.5:1 against their theme's `onAccent`.
 
 **File format** (also what Export writes):
 ```json
@@ -323,9 +413,11 @@ The slot order is fixed by meaning so imported palettes line up: 1 blue, 2 green
   "kind": "light",
   "colors": { "bg": "#F5F5F2", "surface": "#FFFFFF", "chip": "#EFEFEB", "line": "#E3E3DE",
               "track": "#ECECE7", "text": "#1B1B1A", "muted": "#62625D", "onAccent": "#FFFFFF" },
-  "slots": ["#2F5FCC", "#17804F", "#B5561A", "#8A47C4", "#C03636", "#1F7799", "#8C6A0A", "#4D4D49"]
+  "slots": ["#2F5FCC", "#17804F", "#B5561A", "#8A47C4", "#C03636", "#1F7799", "#8C6A0A", "#4D4D49",
+            "#B8336A", "#0F7A6E", "#4F7A12", "#7A4E2D", "#4338CA", "#6B6A1F", "#7D1F3A", "#5B6472"]
 }
 ```
+A file with only 8 slots is accepted; 9–16 are derived (below).
 - **Built-in themes** (`config/themes/*.json`, id = file name, listed by their optional `order`): Paper (light,
   default), Graphite (dark), Dune (light), Tokyo Night, Gruvbox Dark, Nord (dark), Solarized Light. They cannot be
   deleted.
@@ -351,7 +443,42 @@ The slot order is fixed by meaning so imported palettes line up: 1 blue, 2 green
     mixed toward `text` by 3 %, 7 %, 12 %, 8 %; muted = a 60 % mix, raised until it reaches 4.5:1 on `bg` and
     `surface` (an imported muted below 4.5:1 is raised the same way). Missing slots come from Paper (light) or
     Graphite (dark). `kind` comes from the file, else from the background's luminance.
-  - `onAccent` = white or `bg`, whichever has the better worst-case contrast against the 8 slots.
+  - `onAccent` = white or `bg`, whichever has the better worst-case contrast against slots 1–8.
+  - **Slots 9–16:** Alacritty, iTerm and VS Code terminal colors fill them from the bright ANSI colors (BrightMagenta
+    → pink, BrightCyan → teal, BrightGreen → lime, BrightBlue → indigo, BrightYellow → olive, BrightBlack / BrightWhite
+    → slate) when one differs from every other slot by ΔE (CIE76) 15 or more. Otherwise, and for base16 and 8-slot
+    files, they are derived from slots 1–8: pink = red turned toward magenta, teal = green + cyan, lime = green +
+    yellow, brown = orange darkened 25 %, indigo = blue + purple, olive = yellow mixed 30 % toward neutral, wine = red +
+    purple darkened 20 %, slate = neutral mixed 15 % toward blue. Derived and picked ones are moved in lightness (not
+    hue) until they reach 4.5:1 against `onAccent`.
+  - Stored imported themes and themes embedded in old exports with 8 slots get 9–16 derived on load.
   - After import a warning lists every slot under 3:1 against `bg`; the theme still installs and is applied.
   - Imported themes are stored per app (IndexedDB store `themes`, shared by all profiles) and can be renamed,
     exported and deleted. Deleting one that profiles use makes them fall back as above.
+
+## 17. Categories
+A **dimension** is one way to split time (Focus, Company, Billing); it has **options** (Productive /
+Non-productive). Stored per profile in the IndexedDB store `categories`:
+`{id, profileId, name, order, options: [{id, name, colorSlot, order}]}`.
+- An activity has at most one option per dimension (`activity.categories`: dimension id → option id; a missing key is
+  "Not set"), so each dimension adds up to 100 % with an automatic **Not set** share (`muted` at 35 %).
+- Categories are only for the Summary (§9): "Group by <dimension>" colors blocks, rows, the donut and the share by
+  option. Groups stay as they are (one per activity, main screen show/hide, §13).
+- Stats follow the activity's **current** options: changing an option changes history, as groups do.
+- Each option has a color slot (1–16); new options take the first slot the dimension does not use yet.
+- Deleting a dimension (after a confirmation) removes it from every activity; deleting an option moves its activities
+  to Not set. Nothing else changes.
+
+## 18. Dialogs
+Every popup uses one dialog component.
+- A centered card: `surface`, 1 px `line`, radius 22 px, padding 22 × 24 px, 16 px gaps, on a black scrim at 45 %; max
+  width 460 px (confirms), 520 px (profiles), 600 px (activity, session editor, add range), 380 px (menu). It scrolls
+  inside when taller than the screen.
+- Below 600 px wide it is a full-width **bottom sheet**: top corners 22 px, a 40 × 4 px grab handle, max 90 % of the
+  screen height.
+- Esc, the round × (popups with content) and a tap on the scrim close it; confirms and the menu have Cancel instead.
+- Confirms are Cancel (secondary, `chip`) + the action (primary = accent, or danger = slot 5 for destructive actions),
+  right-aligned, 140–220 px wide, 48 px high; they stretch side by side on a phone. Messages have one OK.
+- Used for: profile switcher (§12), activity popup and delete session (§7), reset day and close app (§6.2), the
+  placeholder of What is it? / Similar apps / Send feedback ("This page is coming in a later version." · OK), the
+  phone More menu (§6), and the confirmations in Settings and the day editor.
