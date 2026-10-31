@@ -1,11 +1,11 @@
 // Thin IndexedDB wrapper. Stores: profiles, groups / activities / days (index profileId), segments (index dayId),
-// settings (key/value), themes (imported themes, shared by all profiles).
-import type { Activity, Day, Group, Profile, Segment } from './types.ts';
+// settings (key/value), themes (imported themes, shared by all profiles), categories (dimensions, index profileId).
+import type { Activity, Day, Dimension, Group, Profile, Segment } from './types.ts';
 import type { ProfileData } from './backup.ts';
 import type { Theme } from './theme.ts';
 
 const DB_NAME = 'activity-tracker';
-const VERSION = 3;
+const VERSION = 4;
 
 interface Records {
   profiles: Profile;
@@ -15,9 +15,10 @@ interface Records {
   segments: Segment;
   settings: { key: string; value: unknown };
   themes: Theme;
+  categories: Dimension;
 }
 type Store = keyof Records;
-type ProfileStore = 'groups' | 'activities' | 'days';
+type ProfileStore = 'groups' | 'activities' | 'days' | 'categories';
 
 let dbPromise: Promise<IDBDatabase> | null = null;
 
@@ -41,6 +42,7 @@ function open() {
         tx.objectStore('days').createIndex('profileId', 'profileId');
       }
       if (e.oldVersion < 3) db.createObjectStore('themes', { keyPath: 'id' });
+      if (e.oldVersion < 4) db.createObjectStore('categories', { keyPath: 'id' }).createIndex('profileId', 'profileId');
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
@@ -100,21 +102,30 @@ export async function replaceDaySegments(dayId: string, segments: Segment[]) {
   return done(tx);
 }
 
-/** A profile's groups, activities, days and the days' segments. */
+/** All segments of these days. */
+export async function segmentsOfDays(dayIds: string[]): Promise<Segment[]> {
+  const db = await open();
+  const index = db.transaction('segments').objectStore('segments').index('dayId');
+  return (await Promise.all(dayIds.map((id) => result(index.getAll(id))))).flat();
+}
+
+/** A profile's groups, activities, categories, days and the days' segments. */
 export async function profileData(profileId: string): Promise<ProfileData> {
-  const [groups, activities, days] = await Promise.all([getAllOf('groups', profileId), getAllOf('activities', profileId), getAllOf('days', profileId)]);
-  const segments = (await Promise.all(days.map((d) => segmentsOfDay(d.id)))).flat();
-  return { groups, activities, days, segments };
+  const [groups, activities, categories, days] = await Promise.all([
+    getAllOf('groups', profileId), getAllOf('activities', profileId), getAllOf('categories', profileId), getAllOf('days', profileId),
+  ]);
+  const segments = await segmentsOfDays(days.map((d) => d.id));
+  return { groups, activities, categories, days, segments };
 }
 
 /**
- * Atomically delete a profile's groups, activities, days and segments, then either store `replacement` (the profile
+ * Atomically delete a profile's groups, activities, categories, days and segments, then either store `replacement` (the profile
  * record and its new data) or, without it, delete the profile record too.
  */
 export async function replaceProfile(profileId: string, replacement?: { profile: Profile } & ProfileData) {
   const db = await open();
-  const tx = db.transaction(['profiles', 'groups', 'activities', 'days', 'segments'], 'readwrite');
-  for (const s of ['groups', 'activities'] as const) {
+  const tx = db.transaction(['profiles', 'groups', 'activities', 'categories', 'days', 'segments'], 'readwrite');
+  for (const s of ['groups', 'activities', 'categories'] as const) {
     for (const k of await result(tx.objectStore(s).index('profileId').getAllKeys(profileId))) tx.objectStore(s).delete(k);
   }
   const segments = tx.objectStore('segments');
@@ -124,7 +135,7 @@ export async function replaceProfile(profileId: string, replacement?: { profile:
   }
   if (replacement) {
     tx.objectStore('profiles').put(replacement.profile);
-    for (const s of ['groups', 'activities', 'days', 'segments'] as const) {
+    for (const s of ['groups', 'activities', 'categories', 'days', 'segments'] as const) {
       for (const v of replacement[s]) tx.objectStore(s).put(v);
     }
   } else {

@@ -1,16 +1,16 @@
 // Day editor: one day's whole timeline (today, or a closed day picked with ‹ ›); edit/delete any segment, add a
 // range, or clear the day.
 import { useEffect, useState } from 'preact/hooks';
-import { state, liveActivities, assignRange, deleteSession, clearDay, dayList, openPastDay } from '../state.ts';
+import { state, liveActivities, assignRange, clearDay, dayList, openPastDay } from '../state.ts';
 import { duration } from '../timeline.ts';
 import type { Day } from '../types.ts';
 import { slotColor } from '../theme.ts';
 import { fmtDate, fmtDur, fmtRange } from './util.ts';
 import { TimePicker, clampTime } from './timePicker.tsx';
-import { openSessionEditor } from './activityPopup.tsx';
+import { openSessionEditor, confirmDeleteSession } from './activityPopup.tsx';
 import { TimelineBar, activityRange, logRows, GapRow, dayLookup } from './summary.tsx';
 import { BackBar, Icon } from './icons.tsx';
-import { openModal, useAppState } from './hooks.tsx';
+import { confirmDialog, openModal, useAppState } from './hooks.tsx';
 
 export function DayEditor({ onBack }: { onBack: () => void }) {
   useAppState();
@@ -56,15 +56,19 @@ export function DayEditor({ onBack }: { onBack: () => void }) {
                 <span>{fmtRange(seg.start, seg.end)}</span>
                 <span class="muted">{fmtDur(duration(seg, now))}</span>
                 <button onClick={() => openSessionEditor(seg, day)}>Edit</button>
-                <button class="danger" onClick={() => confirm('Delete this session?') && deleteSession(seg)}>Delete</button>
+                <button class="danger" onClick={() => confirmDeleteSession(seg, now)}>Delete</button>
               </li>
             );
           }) : <li class="muted">No sessions {isToday ? 'today' : 'on this day'}.</li>}
         </ul>
         <div class="row">
-          <button class="primary" onClick={() => openModal((close) => <AddRange day={day} close={close} />)}>+ Add range</button>
-          <button class="danger" onClick={() => {
-            if (confirm(`Delete ALL sessions of ${isToday ? 'today' : 'this day'}? You can then rebuild the day with "Add range".`)) clearDay(day.id);
+          <button class="primary" onClick={() => openModal((close) => <AddRange day={day} close={close} />, { size: 'activity' })}>+ Add range</button>
+          <button class="danger" onClick={async () => {
+            const ok = await confirmDialog({
+              title: `Clear ${isToday ? 'today' : 'this day'}?`,
+              body: 'All its sessions are deleted. You can then rebuild the day with "Add range".', ok: 'Clear day', danger: true,
+            });
+            if (ok) clearDay(day.id);
           }}>Clear whole day</button>
         </div>
       </div>
@@ -81,8 +85,8 @@ function AddRange({ day, close }: { day: Day; close: () => void }) {
   const [from, setFrom] = useState(() => clampTime(to - 30 * 60000, day.startedAt, to));
   const [running, setRunning] = useState(false);
   return (
-    <div class="popup">
-      <h2>Add range</h2>
+    <div class="dialog-body popup">
+      <h2 class="dialog-title">Add range</h2>
       <div class="chips">
         {acts.map((a) => (
           <button key={a.id} class={`chip${chosen === a.id ? ' active' : ''}`} style={{ '--c': slotColor(a.colorSlot) }} onClick={() => setChosen(a.id)}>{a.name}</button>
@@ -96,7 +100,8 @@ function AddRange({ day, close }: { day: Day; close: () => void }) {
           <input type="checkbox" checked={running} onChange={(e) => setRunning(e.currentTarget.checked)} /> Until now and keep running
         </label>
       )}
-      <div class="actions">
+      <div class="dialog-actions">
+        <button class="secondary" onClick={close}>Cancel</button>
         <button class="primary" onClick={() => {
           assignRange(chosen, from, running ? null : to, day.id);
           close();

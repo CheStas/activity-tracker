@@ -14,7 +14,7 @@ export interface Activity {
   profileId: string;
   groupId: string | null;
   name: string;
-  /** Theme color slot 0–7 (the theme gives the color). */
+  /** Theme color slot 0–15 (the theme gives the color). */
   colorSlot: number;
   order: number;
   archived: boolean;
@@ -22,11 +22,13 @@ export interface Activity {
   deleted?: boolean;
   hiddenForDayId: string | null;
   targetMin: number | null;
+  /** The option picked per dimension (dimension id -> option id); a missing key is "Not set". */
+  categories?: Record<string, string>;
 }
 
 /**
- * Name, color slot and target copied into a closed day so later edits do not change history. Days closed before
- * slots existed have a hex `color` instead, kept as it is.
+ * Name and target copied into a closed day so later renames do not change history. Older days also stored a color
+ * slot or a hex `color`; colors now always follow the activity's current slot.
  */
 export type ActivitySnapshot = Pick<Activity, 'name' | 'targetMin'> & { colorSlot?: number; color?: string };
 
@@ -37,6 +39,26 @@ export interface Group {
   name: string;
   order: number;
   on: boolean;
+}
+
+/** One option of a dimension, with its own color slot (0–15). */
+export interface CategoryOption {
+  id: string;
+  name: string;
+  colorSlot: number;
+  order: number;
+}
+
+/**
+ * A dimension of categories (Focus, Company, Billing): one way to split time in the Summary. Each activity has at most
+ * one of its options; the rest is "Not set", so a dimension always adds up to 100%.
+ */
+export interface Dimension {
+  id: string;
+  profileId: string;
+  name: string;
+  order: number;
+  options: CategoryOption[];
 }
 
 /** A separate tracker: activities, groups and days carry its id. */
@@ -58,6 +80,9 @@ export interface Day {
 /** Fixed: one theme (themeId). System: lightThemeId / darkThemeId by prefers-color-scheme. */
 export type ThemeMode = 'fixed' | 'system';
 export type Layout = 'rows' | 'tiles' | 'circles';
+export type PeriodKind = 'day' | 'week' | 'month' | 'custom';
+/** "system" (from the locale) or a weekday, 0 = Sunday. */
+export type WeekStart = 'system' | number;
 
 /** Settings of one profile. */
 export interface Settings {
@@ -78,4 +103,11 @@ export interface Settings {
   introDismissed: boolean;
   autoExport: boolean;
   minSwitchSec: number;
+  weekStart: WeekStart;
+  /** Summary "Group by": "activity" or a dimension id (back to activity when that dimension is deleted). */
+  summaryGroupBy: string;
+  /** Summary session log grouped by the Group by dimension. */
+  summaryGroupLog: boolean;
+  /** The Summary period used last. */
+  summaryPeriod: PeriodKind;
 }

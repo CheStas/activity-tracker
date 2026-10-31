@@ -16,6 +16,26 @@ export function fmtHMS(ms: number) {
   return `${Math.floor(s / 3600)}:${pad(Math.floor((s % 3600) / 60))}:${pad(s % 60)}`;
 }
 
+/** A duration in words with seconds, for sentences: "13m 52s", "1h 02m 05s". */
+export function fmtDurWords(ms: number) {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  return h ? `${h}h ${pad(m)}m ${pad(s % 60)}s` : `${m}m ${pad(s % 60)}s`;
+}
+
+/** Summary totals, always with hours: "8h 43m", "0h 25m". */
+export function fmtHours(ms: number) {
+  const m = Math.round(Math.max(0, ms) / 60000);
+  return `${Math.floor(m / 60)}h ${pad(m % 60)}m`;
+}
+
+/** Compact hours for calendar cells: "9h14", "0h25". */
+export function fmtHoursShort(ms: number) {
+  const m = Math.round(Math.max(0, ms) / 60000);
+  return `${Math.floor(m / 60)}h${pad(m % 60)}`;
+}
+
 /** Coarse duration for summaries: "1h 05m", "12m". */
 export function fmtHM(ms: number) {
   const m = Math.round(Math.max(0, ms) / 60000);

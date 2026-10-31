@@ -15,7 +15,11 @@
     "keepAwake": true,
     "resetHour": 0,
     "minSwitchSec": 60,
-    "autoExport": false
+    "autoExport": false,
+    "weekStart": "system",
+    "summaryGroupBy": "activity",
+    "summaryGroupLog": true,
+    "summaryPeriod": "day"
   },
   "profiles": [
     {

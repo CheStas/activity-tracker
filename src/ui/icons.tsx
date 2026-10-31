@@ -14,6 +14,9 @@ const PATHS = {
   chevronDown: '<path d="M6 9l6 6 6-6"/>',
   feedback: '<path d="M4 5h16v11H9l-5 4z"/>',
   upload: '<path d="M12 15V4"/><path d="M7 9l5-5 5 5"/><path d="M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/>',
+  more: '<circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/>',
+  calendar: '<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18"/><path d="M8 3v4"/><path d="M16 3v4"/>',
+  chevronRight: '<path d="M9 6l6 6-6 6"/>',
 };
 
 export type IconName = keyof typeof PATHS;

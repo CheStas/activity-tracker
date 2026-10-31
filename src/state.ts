@@ -1,11 +1,12 @@
-// App state: the open profile, its groups, activities, current day and segments, settings, and the installed themes.
+// App state: the open profile, its groups, categories, activities, current day and segments, settings, and the
+// installed themes.
 // All mutations go through here.
 import * as db from './db.ts';
 import { assign, switchTo, closeAt, totals, dayTotal, openSegment, uuid } from './timeline.ts';
 import { seed, seedRecords, newActivity, nameKey, withDefaults, normalizeActivity, DEFAULT_SETTINGS } from './seed.ts';
 import { profileExport, readImport, normalizeGroup } from './backup.ts';
 import { BUILTIN, pickThemePatch, upgradeTheme, type Theme, type ThemeFile } from './theme.ts';
-import type { Activity, Day, Group, Profile, Segment, Settings } from './types.ts';
+import type { Activity, CategoryOption, Day, Dimension, Group, Profile, Segment, Settings } from './types.ts';
 
 const ACTIVE_PROFILE = 'activeProfileId'; // settings-store key; the only app-wide setting
 
@@ -17,6 +18,8 @@ export const state = {
   themes: [...BUILTIN] as Theme[],
   profile: null as unknown as Profile,
   groups: [] as Group[],
+  /** Category dimensions, in order, each with its options in order. */
+  categories: [] as Dimension[],
   activities: [] as Activity[], // includes archived
   day: null as unknown as Day,
   segments: [] as Segment[], // current day
@@ -93,8 +96,8 @@ async function firstRun(): Promise<Profile[]> {
 async function openProfile(profile: Profile) {
   await writeChain;
   await rolling;
-  const [groups, activities, days] = await Promise.all([
-    db.getAllOf('groups', profile.id), db.getAllOf('activities', profile.id), db.getAllOf('days', profile.id),
+  const [groups, categories, activities, days] = await Promise.all([
+    db.getAllOf('groups', profile.id), db.getAllOf('categories', profile.id), db.getAllOf('activities', profile.id), db.getAllOf('days', profile.id),
   ]);
   const day = days.find((d) => d.endedAt === null) ?? (await startDay(profile.id, Date.now()));
   const segments = await db.segmentsOfDay(day.id);
@@ -103,7 +106,8 @@ async function openProfile(profile: Profile) {
   const upgraded = activities.filter((a) => typeof a.colorSlot !== 'number').map(normalizeActivity);
   if (upgraded.length) await db.put('activities', ...upgraded);
   const all = activities.map((a) => upgraded.find((u) => u.id === a.id) ?? a);
-  Object.assign(state, { profile, groups: byOrder(groups.map(normalizeGroup)), activities: byOrder(all), day, segments, pastDay: null });
+  const dims = byOrder(categories).map((d) => ({ ...d, options: byOrder([...d.options]) }));
+  Object.assign(state, { profile, groups: byOrder(groups.map(normalizeGroup)), categories: dims, activities: byOrder(all), day, segments, pastDay: null });
   await checkRollover(Date.now());
   emit('change');
 }
@@ -247,7 +251,7 @@ async function closeDay(at: number) {
     await db.del('days', day.id);
   } else {
     day.snapshot = {
-      activities: Object.fromEntries(state.activities.map((a) => [a.id, { name: a.name, colorSlot: a.colorSlot, targetMin: a.targetMin }])),
+      activities: Object.fromEntries(state.activities.map((a) => [a.id, { name: a.name, targetMin: a.targetMin }])),
       total: dayTotal(segments, at),
     };
     await db.replaceDaySegments(day.id, segments);
@@ -405,6 +409,117 @@ export function removeGroup(id: string) {
   emit('change');
 }
 
+// ---------- categories ----------
+
+export const dimensionById = (id: string) => state.categories.find((d) => d.id === id);
+/** An activity's option of a dimension, or undefined for "Not set". */
+export const optionOf = (a: Activity | undefined, d: Dimension) => d.options.find((o) => o.id === a?.categories?.[d.id]);
+
+function saveDimensions(...list: Dimension[]) {
+  queue(() => db.put('categories', ...list));
+  emit('change');
+}
+
+const nextOrder = (list: { order: number }[]) => Math.max(-1, ...list.map((x) => x.order)) + 1;
+
+/** Options get the next color slots after those the dimension already uses. */
+function newOption(d: Pick<Dimension, 'options'>, name: string): CategoryOption {
+  const used = new Set(d.options.map((o) => o.colorSlot));
+  const slot = Array.from({ length: 16 }, (_, i) => i).find((i) => !used.has(i)) ?? d.options.length % 16;
+  return { id: uid(), name, colorSlot: slot, order: nextOrder(d.options) };
+}
+
+export function addDimension(name: string, options: { name: string; colorSlot?: number }[] = []) {
+  const d: Dimension = { id: uid(), profileId: state.profile.id, name, order: nextOrder(state.categories), options: [] };
+  for (const o of options) d.options.push({ ...newOption(d, o.name), ...(o.colorSlot !== undefined ? { colorSlot: o.colorSlot } : {}) });
+  state.categories.push(d);
+  saveDimensions(d);
+  return d;
+}
+
+export function renameDimension(id: string, name: string) {
+  const d = dimensionById(id);
+  if (!d) return;
+  d.name = name;
+  saveDimensions(d);
+}
+
+/** Swap with a neighbor in `list` (sorted by order). */
+function swapOrder<T extends { order: number }>(list: T[], i: number, dir: number) {
+  const j = i + dir;
+  if (i < 0 || j < 0 || j >= list.length) return null;
+  const [a, b] = [list[i], list[j]];
+  [a.order, b.order] = [b.order, a.order];
+  byOrder(list);
+  return [a, b];
+}
+
+export function moveDimension(id: string, dir: number) {
+  const pair = swapOrder(state.categories, state.categories.findIndex((d) => d.id === id), dir);
+  if (pair) saveDimensions(...pair);
+}
+
+/** Delete a dimension: every activity forgets its option of it; a Summary grouped by it goes back to activities. */
+export function removeDimension(id: string) {
+  const members = state.activities.filter((a) => a.categories && id in a.categories);
+  for (const a of members) {
+    const { [id]: _, ...rest } = a.categories!;
+    a.categories = rest;
+  }
+  state.categories = state.categories.filter((d) => d.id !== id);
+  if (state.profile.settings.summaryGroupBy === id) setSetting('summaryGroupBy', 'activity');
+  queue(async () => {
+    if (members.length) await db.put('activities', ...members);
+    await db.del('categories', id);
+  });
+  emit('change');
+}
+
+export function addOption(dimensionId: string, name: string) {
+  const d = dimensionById(dimensionId);
+  if (!d) return;
+  d.options.push(newOption(d, name));
+  saveDimensions(d);
+}
+
+export function updateOption(dimensionId: string, optionId: string, patch: Partial<Omit<CategoryOption, 'id'>>) {
+  const d = dimensionById(dimensionId);
+  const o = d?.options.find((x) => x.id === optionId);
+  if (!d || !o) return;
+  Object.assign(o, patch);
+  saveDimensions(d);
+}
+
+export function moveOption(dimensionId: string, optionId: string, dir: number) {
+  const d = dimensionById(dimensionId);
+  if (d && swapOrder(d.options, d.options.findIndex((o) => o.id === optionId), dir)) saveDimensions(d);
+}
+
+/** Delete an option; its activities become "Not set" for that dimension. */
+export function removeOption(dimensionId: string, optionId: string) {
+  const d = dimensionById(dimensionId);
+  if (!d) return;
+  d.options = d.options.filter((o) => o.id !== optionId);
+  const members = state.activities.filter((a) => a.categories?.[dimensionId] === optionId);
+  for (const a of members) {
+    const { [dimensionId]: _, ...rest } = a.categories!;
+    a.categories = rest;
+  }
+  queue(async () => {
+    if (members.length) await db.put('activities', ...members);
+    await db.put('categories', d);
+  });
+  emit('change');
+}
+
+/** Pick an activity's option of a dimension; null = Not set. */
+export function setActivityOption(activityId: string, dimensionId: string, optionId: string | null) {
+  const a = activityById(activityId);
+  if (!a) return;
+  const { [dimensionId]: _, ...rest } = a.categories ?? {};
+  updateActivity(activityId, { categories: optionId ? { ...rest, [dimensionId]: optionId } : rest });
+}
+
 // ---------- profiles ----------
 
 export async function switchProfile(id: string) {
@@ -452,11 +567,42 @@ export function setSetting<K extends keyof Settings>(key: K, value: Settings[K])
   emit('change');
 }
 
-/** All days of the open profile (newest first) with their segments. */
-export async function history() {
+/** All days of the open profile (oldest first) and the segments of the closed ones; today's are state.segments. */
+export async function closedHistory() {
   await writeChain;
-  const days = (await db.getAllOf('days', state.profile.id)).sort((a, b) => b.startedAt - a.startedAt);
-  return Promise.all(days.map(async (d) => ({ day: d, segments: d.id === state.day.id ? state.segments : await db.segmentsOfDay(d.id) })));
+  const days = (await db.getAllOf('days', state.profile.id)).sort((a, b) => a.startedAt - b.startedAt);
+  const closed = days.filter((d) => d.id !== state.day.id);
+  return { days, segments: await db.segmentsOfDays(closed.map((d) => d.id)) };
+}
+
+/** What the profile switcher shows about a profile. */
+export interface ProfileStatus {
+  running: { name: string; colorSlot: number; since: number } | null;
+  /** Tracked in the profile's open day (with the running time up to `now`). */
+  todayMs: number;
+  /** End of the last session, or null when nothing was ever tracked. */
+  lastUsed: number | null;
+}
+
+export async function profileStatus(id: string, now = Date.now()): Promise<ProfileStatus> {
+  await writeChain;
+  const [days, activities] = id === state.profile.id
+    ? [await db.getAllOf('days', id), state.activities]
+    : await Promise.all([db.getAllOf('days', id), db.getAllOf('activities', id)]);
+  const openDay = days.find((d) => d.endedAt === null);
+  const today = id === state.profile.id ? state.segments : openDay ? await db.segmentsOfDay(openDay.id) : [];
+  const open = openSegment(today);
+  let lastUsed = today.length ? Math.max(...today.map((s) => s.end ?? now)) : null;
+  if (lastUsed === null) {
+    const closed = days.filter((d) => d.endedAt !== null && d.snapshot?.total).sort((a, b) => b.startedAt - a.startedAt)[0];
+    if (closed) lastUsed = Math.max(...(await db.segmentsOfDay(closed.id)).map((s) => s.end ?? closed.endedAt!), closed.startedAt);
+  }
+  const act = open && activities.find((a) => a.id === open.activityId);
+  return {
+    running: open && { name: act?.name ?? 'An activity', colorSlot: act?.colorSlot ?? 0, since: open.start },
+    todayMs: dayTotal(today, now),
+    lastUsed,
+  };
 }
 
 /** The open profile as a backup file (with the imported themes it uses). */

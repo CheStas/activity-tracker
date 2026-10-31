@@ -3,27 +3,17 @@
 import { state, pickTheme, systemDark } from '../state.ts';
 import { resolveTheme, type Theme } from '../theme.ts';
 import { Icon } from './icons.tsx';
-import { openModal } from './hooks.tsx';
+import { messageDialog } from './hooks.tsx';
 
 export const VERSION = `v${__APP_VERSION__}`;
 
 const LINKS = [
-  {
-    id: 'what', label: 'What is it?',
-    text: 'A chess clock for your work day: one big button per activity. Tap one to start it, tap another to switch, tap the running one to stop. Your data stays in this browser.',
-  },
-  { id: 'compare', label: 'Similar apps', text: 'A comparison with similar time trackers is coming here soon.' },
-  { id: 'feedback', label: 'Send feedback', text: 'A feedback form is coming here soon.' },
+  { id: 'what', label: 'What is it?' },
+  { id: 'compare', label: 'Similar apps' },
+  { id: 'feedback', label: 'Send feedback' },
 ];
 
-function openPlaceholder(link: (typeof LINKS)[number]) {
-  openModal(() => (
-    <div class="popup">
-      <h2>{link.label}</h2>
-      <p>{link.text}</p>
-    </div>
-  ));
-}
+const openPlaceholder = (link: (typeof LINKS)[number]) => messageDialog(link.label, 'This page is coming in a later version.');
 
 /** The three links as buttons; `variant` picks the look of the place they are in. */
 export function AboutLinks({ variant }: { variant: 'strip' | 'footer' | 'settings' }) {

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { profileExport, readImport, normalizeGroup } from '../src/backup.ts';
 import { DEFAULT_SETTINGS } from '../src/seed.ts';
 import { BUILTIN, PAPER, type Theme } from '../src/theme.ts';
-import type { Activity, Group, Profile } from '../src/types.ts';
+import type { Activity, Dimension, Group, Profile } from '../src/types.ts';
 
 const ids = () => {
   let n = 0;
@@ -17,6 +17,7 @@ const act = (id: string, groupId: string | null): Activity => ({
 });
 const data = {
   groups: [group],
+  categories: [] as Dimension[],
   activities: [act('a1', 'g1'), act('a2', 'gone')],
   days: [
     { id: 'd1', profileId: 'pA', startedAt: 0, endedAt: 10, snapshot: { activities: { a1: { name: 'a1', color: '#111111', targetMin: null } }, total: 10 } },
@@ -64,6 +65,26 @@ test('an export from before profiles (v1) imports with its settings', () => {
   assert.deepEqual([r.activities[0].profileId, r.activities[0].groupId], ['pB', null]);
   assert.equal(r.activities[0].colorSlot, 4); // old red -> Paper red slot
   assert.ok(!('color' in r.activities[0]));
+});
+
+test('categories and activity options round-trip with new ids; picks of unknown options are dropped', () => {
+  const dim: Dimension = { id: 'dim1', profileId: 'pA', name: 'Focus', order: 0, options: [{ id: 'o1', name: 'Productive', colorSlot: 12, order: 0 }] };
+  const acts: Activity[] = [{ ...act('a1', null), categories: { dim1: 'o1' } }, { ...act('a2', null), categories: { dim1: 'gone', other: 'x' } }];
+  const file = JSON.parse(JSON.stringify(profileExport(profile, { ...data, categories: [dim], activities: acts })));
+  const r = readImport(file, 'pB', ids());
+  const [d] = r.categories;
+  assert.deepEqual([d.name, d.profileId, d.options[0].name, d.options[0].colorSlot], ['Focus', 'pB', 'Productive', 12]);
+  assert.ok(d.id.startsWith('new') && d.options[0].id.startsWith('new'));
+  assert.deepEqual(r.activities[0].categories, { [d.id]: d.options[0].id });
+  assert.deepEqual(r.activities[1].categories, {});
+  // Files from before categories import with none.
+  assert.deepEqual(readImport({ app: 'activity-tracker', kind: 'profile', profile: {} }, 'pB', ids()).categories, []);
+});
+
+test('8-slot embedded themes get slots 9–16 on import', () => {
+  const custom = { ...PAPER, builtin: undefined, id: 'custom-1', slots: PAPER.slots.slice(0, 8) };
+  const r = readImport({ app: 'activity-tracker', kind: 'profile', profile: {}, themes: [custom] }, 'pB', ids());
+  assert.equal(r.themes[0].slots.length, 16);
 });
 
 test('other files are rejected', () => {

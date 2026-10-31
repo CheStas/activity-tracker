@@ -1,14 +1,15 @@
 // Per-profile backup file: building an export and reading one back. Pure: no DOM, no storage.
-import type { Activity, Day, Group, Profile, Segment, Settings } from './types.ts';
+import type { Activity, Day, Dimension, Group, Profile, Segment, Settings } from './types.ts';
 import { migrateSettings, normalizeActivity } from './seed.ts';
 import { completeTheme, type Theme } from './theme.ts';
 
 export const APP = 'activity-tracker';
-const VERSION = 3;
+const VERSION = 4;
 
 export interface ProfileData {
   groups: Group[];
   activities: Activity[];
+  categories: Dimension[];
   days: Day[];
   segments: Segment[];
 }
@@ -46,9 +47,16 @@ export function readImport(raw: unknown, profileId: string, uid: () => string): 
   const ids = new Map<string, string>();
   const id = (old: string) => ids.get(old) ?? ids.set(old, uid()).get(old)!;
   const groupIds = new Set((file.groups ?? []).map((g) => g.id));
+  // Files from before categories have none; an activity's picks are kept only for options that are in the file.
+  const categories = (file.categories ?? []).map((d) => ({
+    ...d, id: id(d.id), profileId, options: (d.options ?? []).map((o) => ({ ...o, id: id(o.id) })),
+  }));
+  const optionIds = new Set((file.categories ?? []).flatMap((d) => (d.options ?? []).map((o) => `${d.id}/${o.id}`)));
+  const picks = (cats: Record<string, string> | undefined) =>
+    Object.fromEntries(Object.entries(cats ?? {}).filter(([d, o]) => optionIds.has(`${d}/${o}`)).map(([d, o]) => [id(d), id(o)]));
   // Older files: `theme` and `popularity` are mapped like stored settings; activity colors become slots.
   const settings = migrateSettings((file.kind === 'profile' ? file.profile?.settings : Object.fromEntries((file.settings ?? []).map((s) => [s.key, s.value]))) ?? {});
-  // Embedded themes keep their ids (the settings refer to them); a broken one is completed like an import.
+  // Embedded themes keep their ids (the settings refer to them); a broken or 8-slot one is completed like an import.
   const themes = (file.themes ?? []).filter((t) => t?.id).map((t) => ({ ...completeTheme(t.name, t.colors ?? {}, t.slots ?? [], t.kind), id: t.id }));
 
   return {
@@ -59,7 +67,9 @@ export function readImport(raw: unknown, profileId: string, uid: () => string): 
       ...normalizeActivity(a), id: id(a.id), profileId,
       groupId: a.groupId && groupIds.has(a.groupId) ? id(a.groupId) : null,
       hiddenForDayId: a.hiddenForDayId ? id(a.hiddenForDayId) : null,
+      categories: picks(a.categories),
     })),
+    categories,
     days: (file.days ?? []).map((d) => ({
       ...d, id: id(d.id), profileId,
       snapshot: d.snapshot && { ...d.snapshot, activities: Object.fromEntries(Object.entries(d.snapshot.activities).map(([k, v]) => [id(k), v])) },

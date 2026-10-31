@@ -1,15 +1,15 @@
 // Entry point: view switching, Esc/back, theme, full screen, quit, day rollover, wake lock, auto-export.
 import { render } from 'preact';
 import { useEffect, useLayoutEffect, useState } from 'preact/hooks';
-import { init, subscribe, checkRollover, resetDay, state, notify } from './state.ts';
+import { init, subscribe, checkRollover, resetDay, state, notify, activeSegment, activityById, todayTotal } from './state.ts';
 import { cssVars, findTheme, resolveTheme } from './theme.ts';
 import { Main } from './ui/main.tsx';
 import { Settings } from './ui/settings.tsx';
 import { Summary } from './ui/summary.tsx';
 import { DayEditor } from './ui/dayEditor.tsx';
-import { ModalHost, closeTopModal } from './ui/hooks.tsx';
+import { ModalHost, closeTopModal, confirmDialog, messageDialog } from './ui/hooks.tsx';
 import { openProfilePicker } from './ui/profiles.tsx';
-import { download, isoDay, slug } from './ui/util.ts';
+import { download, fmtDayShort, fmtHours, isoDay, slug } from './ui/util.ts';
 import '@fontsource/geist-sans/latin-400.css';
 import '@fontsource/geist-sans/latin-500.css';
 import '@fontsource/geist-sans/latin-600.css';
@@ -47,20 +47,19 @@ function App() {
   }, []);
 
   const toMain = () => setView('main');
+  const toSettings = (to?: string) => {
+    setSection(to);
+    setView('settings');
+  };
   return (
     <>
       {view === 'main' && (
         <Main
-          onProfiles={openProfilePicker}
-          onSettings={(to?: string) => {
-            setSection(to);
-            setView('settings');
-          }}
+          onProfiles={() => openProfilePicker(toSettings)}
+          onSettings={toSettings}
           onSummary={() => setView('summary')}
           onDayEditor={() => toEditor('main')}
-          onReset={() => {
-            if (confirm('Close today and start a new day? Today is archived in the summary.')) resetDay();
-          }}
+          onReset={confirmReset}
           onFullscreen={toggleFullscreen}
           onQuit={quit}
         />
@@ -135,11 +134,36 @@ async function toggleFullscreen() {
   }
 }
 
-function quit() {
-  if (!confirm('Close the app? A running activity keeps counting until you stop it.')) return;
+/** The running activity's name, or null while idle. */
+const runningName = () => {
+  const open = activeSegment();
+  return open ? activityById(open.activityId)?.name ?? 'The activity' : null;
+};
+
+async function confirmReset() {
+  const name = runningName();
+  const ok = await confirmDialog({
+    title: 'Reset the day?',
+    body: `${name ? `${name} stops now. ` : ''}${fmtDayShort(state.day.startedAt)} closes with ${fmtHours(todayTotal())} tracked and a new day starts. You can still edit the closed day from Summary.`,
+    ok: 'Reset day', danger: true,
+  });
+  if (ok) resetDay();
+}
+
+async function quit() {
+  const name = runningName();
+  const ok = await confirmDialog({
+    title: 'Close Activity Tracker?',
+    body: name ? `${name} keeps counting while the app is closed. Open the app again to stop it or switch.` : 'Nothing is running.',
+    ok: 'Close app',
+  });
+  if (!ok) return;
   window.close();
   // Browsers only let scripts close app windows / script-opened tabs; tell the user otherwise.
-  setTimeout(() => alert('This window cannot be closed from the page. Close it with Alt+F4 or Ctrl+W.'), 300);
+  setTimeout(() => messageDialog(
+    'Close the window yourself',
+    `The browser does not let this page close its own window. Press Alt+F4 or Ctrl+W.${name ? ` ${name} keeps counting.` : ''}`,
+  ), 300);
 }
 
 /**

@@ -1,24 +1,32 @@
-// Settings screen: a section list and the sections: profiles, groups, activities (add, rename, group, target,
-// reorder, hide for today, remove/restore/delete), appearance (theme, activity colors, main screen), day, device,
-// backup and about.
+// Settings screen: a section list and the sections: profiles, groups, categories (dimensions and options),
+// activities (add, rename, group, target, categories, reorder, hide for today, remove/restore/delete), appearance
+// (theme, activity colors, main screen), day, device, backup and about.
 import { useEffect, useState } from 'preact/hooks';
 import {
   addActivities, updateActivity, renameActivity, moveActivity, removeActivity, restoreActivity, deleteActivity,
   setHiddenToday, canHideToday, activeSegment, setSetting, exportData, importData,
   addGroups, updateGroup, moveGroup, removeGroup, addProfile, renameProfile, removeProfile, switchProfile,
   pickTheme, addTheme, renameTheme, removeTheme, systemDark,
+  addDimension, renameDimension, moveDimension, removeDimension, addOption, updateOption, moveOption, removeOption,
+  setActivityOption, optionOf,
 } from '../state.ts';
 import type { ComponentChildren } from 'preact';
-import type { Activity, Group, Layout, Profile, Settings as AppSettings } from '../types.ts';
+import type { Activity, Dimension, Group, Layout, Profile, Settings as AppSettings, WeekStart } from '../types.ts';
 import { findTheme, lowContrastSlots, parseThemeFile, slotColor, themeFile, SLOT_NAMES, type Theme } from '../theme.ts';
+import { resolveWeekStart } from '../stats.ts';
 import { download, isoDay, fmtSwitch, slug } from './util.ts';
 import { BackBar, Icon } from './icons.tsx';
 import { AboutLinks, VERSION, currentTheme } from './about.tsx';
-import { useAppState } from './hooks.tsx';
+import { confirmDialog, useAppState } from './hooks.tsx';
 
 const MIN_SWITCH = [0, 15, 30, 60, 120, 180, 300];
 const HOURS = Array.from({ length: 24 }, (_, h) => h);
-const SECTIONS = ['Profiles', 'Groups', 'Activities', 'Appearance', 'Day', 'Device', 'Backup', 'About'];
+const SECTIONS = ['Profiles', 'Groups', 'Categories', 'Activities', 'Appearance', 'Day', 'Device', 'Backup', 'About'];
+const WEEKDAY = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const WEEK_STARTS: WeekStart[] = ['system', 1, 0, 6];
+
+/** Confirm a destructive action in the shared dialog. */
+const confirmDanger = (title: string, body: string, ok = 'Delete') => confirmDialog({ title, body, ok, danger: true });
 const sectionId = (name: string) => name.toLowerCase();
 const scrollTo = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
@@ -51,7 +59,7 @@ export function Settings({ onBack, onDayEditor, section }: { onBack: () => void;
     const input = e.currentTarget as HTMLInputElement;
     const file = input.files?.[0];
     input.value = '';
-    if (!file || !confirm(`Import replaces ALL data and settings of the profile "${state.profile.name}". Other profiles are not changed. Continue?`)) return;
+    if (!file || !(await confirmDanger('Import into this profile?', `Import replaces ALL data and settings of the profile "${state.profile.name}". Other profiles are not changed.`, 'Import'))) return;
     try {
       await importData(JSON.parse(await file.text()));
       alert('Import done.');
@@ -99,6 +107,27 @@ export function Settings({ onBack, onDayEditor, section }: { onBack: () => void;
               <button class="primary">Add</button>
             </form>
           </section>
+          <section id="categories">
+            <h2>Categories</h2>
+            <p class="muted">
+              Categories split your time in the Summary. A dimension has options; each activity picks at most one option
+              per dimension. Activities without one count as “Not set”, so every dimension adds up to 100%.
+            </p>
+            {state.categories.length === 0 ? (
+              <div class="empty-dims">
+                <strong>No categories yet</strong>
+                <span class="muted">For example, <strong>Focus</strong>: Productive / Non-productive, or <strong>Company</strong>: With people / Alone.</span>
+                <div class="row-buttons">
+                  <button class="primary" onClick={() => addDimension('Focus', [{ name: 'Productive', colorSlot: 1 }, { name: 'Non-productive', colorSlot: 7 }])}>Add “Focus” example</button>
+                  <button class="secondary" onClick={() => addDimension('New dimension')}>Add an empty dimension</button>
+                </div>
+              </div>
+            ) : state.categories.map((d, i) => <DimensionCard key={d.id} d={d} first={i === 0} last={i === state.categories.length - 1} />)}
+            <form class="row" onSubmit={onAdd((name) => addDimension(name))}>
+              <input name="names" type="text" class="grow" placeholder="New dimension, e.g. Energy" aria-label="New dimension" />
+              <button class="primary">Add dimension</button>
+            </form>
+          </section>
           <section id="activities">
             <h2>Activities</h2>
             <ul class="act-list">
@@ -122,8 +151,8 @@ export function Settings({ onBack, onDayEditor, section }: { onBack: () => void;
                   <li key={a.id}>
                     <span class="sq" style={{ background: slotColor(a.colorSlot) }} /><span class="grow">{a.name}</span>
                     <button onClick={() => restoreActivity(a.id)}>Restore</button>
-                    <button class="danger" onClick={() => {
-                      if (confirm(`Delete "${a.name}" from this list? Its tracked time stays in the summary.`)) deleteActivity(a.id);
+                    <button class="danger" onClick={async () => {
+                      if (await confirmDanger(`Delete “${a.name}”?`, 'It leaves this list for good. Its tracked time stays in the summary.')) deleteActivity(a.id);
                     }}>Delete</button>
                   </li>
                 ))}
@@ -159,6 +188,16 @@ export function Settings({ onBack, onDayEditor, section }: { onBack: () => void;
                 {HOURS.map((h) => <option key={h} value={String(h)}>{String(h).padStart(2, '0')}:00</option>)}
               </select>
             </label>
+            <div class="row"><span class="row-label">Week starts on</span>
+              <div class="segmented" role="group" aria-label="Week starts on">
+                {WEEK_STARTS.map((w) => (
+                  <button key={w} class="seg" aria-pressed={s.weekStart === w} onClick={() => setSetting('weekStart', w)}>
+                    {w === 'system' ? `System (${WEEKDAY[resolveWeekStart('system')]})` : WEEKDAY[w]}
+                  </button>
+                ))}
+              </div>
+              <span class="muted">used by the Week period, the calendar and the heatmap</span>
+            </div>
             <label class="row"><span class="row-label">Minimum switch</span>
               <select value={String(s.minSwitchSec)} onChange={(e) => setSetting('minSwitchSec', Number(e.currentTarget.value))}>
                 {MIN_SWITCH.map((sec) => <option key={sec} value={String(sec)}>{fmtSwitch(sec)}</option>)}
@@ -278,7 +317,7 @@ function ThemeSection() {
   );
 }
 
-/** A theme card: a mini preview (background, surface, a filled tile, the 8 slots), name and kind. */
+/** A theme card: a mini preview (background, surface, a filled tile, the 16 slots), name and kind. */
 function ThemeCard({ t, on }: { t: Theme; on: boolean }) {
   const c = t.colors;
   return (
@@ -302,8 +341,8 @@ function ThemeCard({ t, on }: { t: Theme; on: boolean }) {
             if (name) renameTheme(t.id, name);
           }}>Rename</button>
           <button onClick={() => download(`${slug(t.name)}.json`, themeFile(t))}>Export</button>
-          <button class="danger" onClick={() => {
-            if (confirm(`Delete the theme "${t.name}"? Profiles that use it switch to Paper or Graphite.`)) removeTheme(t.id);
+          <button class="danger" onClick={async () => {
+            if (await confirmDanger(`Delete the theme “${t.name}”?`, 'Profiles that use it switch to Paper or Graphite.')) removeTheme(t.id);
           }}>Delete</button>
         </div>
       )}
@@ -311,28 +350,136 @@ function ThemeCard({ t, on }: { t: Theme; on: boolean }) {
   );
 }
 
-/** One row per activity with its 8 slot swatches; a tap sets the slot. */
+/** The 16 slot swatches (two rows of 8 on narrow screens); a tap picks one. */
+function SlotSwatches({ value, label, onPick }: { value: number; label: string; onPick: (slot: number) => void }) {
+  return (
+    <span class="slots" role="group" aria-label={label}>
+      {SLOT_NAMES.map((n, i) => (
+        <button key={n} class="slot" aria-label={`Slot ${i + 1}, ${n}`} title={`Slot ${i + 1}, ${n}`} aria-pressed={value === i} onClick={() => onPick(i)}>
+          <span style={{ background: slotColor(i) }} />
+        </button>
+      ))}
+    </span>
+  );
+}
+
+/** One row per activity with the 16 slot swatches. */
 function ActivityColors({ list }: { list: Activity[] }) {
   return (
     <div class="subsection" id="colors">
       <div>
         <h2>Activity colors</h2>
-        <p class="muted">Each theme has 8 color slots, like a terminal palette. An activity picks a slot, so it changes color with the theme and stays readable in every one.</p>
+        <p class="muted">
+          Each theme has 16 color slots, like a terminal palette. An activity picks a slot, so it changes color with the
+          theme and stays readable in every one. With more activities than slots, colors repeat; names are always shown
+          next to colors.
+        </p>
       </div>
       <div class="list-card">
         {list.map((a) => (
           <div key={a.id} class="color-row">
             <span class="color-name"><span class="sq" style={{ background: slotColor(a.colorSlot) }} />{a.name}{a.archived && <span class="muted"> (removed)</span>}</span>
-            <span class="slots" role="group" aria-label={`${a.name} color`}>
-              {SLOT_NAMES.map((n, i) => (
-                <button key={n} class="slot" aria-label={`Slot ${i + 1}, ${n}`} title={`Slot ${i + 1}, ${n}`} aria-pressed={a.colorSlot === i} onClick={() => updateActivity(a.id, { colorSlot: i })}>
-                  <span style={{ background: slotColor(i) }} />
-                </button>
-              ))}
-            </span>
+            <SlotSwatches value={a.colorSlot} label={`${a.name} color`} onPick={(i) => updateActivity(a.id, { colorSlot: i })} />
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+/** A dimension: name, how many activities have an option of it, reorder and delete; its options; add an option. */
+function DimensionCard({ d, first, last }: { d: Dimension; first: boolean; last: boolean }) {
+  const state = useAppState();
+  const [openColor, setOpenColor] = useState<string | null>(null);
+  const live = state.activities.filter((a) => !a.archived);
+  const set = live.filter((a) => optionOf(a, d)).length;
+  return (
+    <div class="dim-card">
+      <div class="dim-head">
+        <label class="dim-name">
+          <span class="muted small">Dimension</span>
+          <input
+            key={`name:${d.name}`} type="text" defaultValue={d.name} aria-label="Dimension name"
+            onChange={(e) => {
+              const name = e.currentTarget.value.trim();
+              if (name) renameDimension(d.id, name);
+            }}
+          />
+        </label>
+        <span class="muted small">{set} of {live.length} activities set</span>
+        <button disabled={first} aria-label="Move up" onClick={() => moveDimension(d.id, -1)}>↑</button>
+        <button disabled={last} aria-label="Move down" onClick={() => moveDimension(d.id, 1)}>↓</button>
+        <button class="danger" onClick={async () => {
+          if (await confirmDanger(`Delete the dimension “${d.name}”?`, 'Every activity loses its option of it. Nothing else changes.')) removeDimension(d.id);
+        }}>Delete</button>
+      </div>
+      {d.options.map((o, i) => {
+        const count = live.filter((a) => a.categories?.[d.id] === o.id).length;
+        const open = openColor === o.id;
+        return (
+          <div key={o.id} class="opt-row">
+            <button class="opt-color" aria-label={`Color of ${o.name}: ${SLOT_NAMES[o.colorSlot]}`} aria-expanded={open} onClick={() => setOpenColor(open ? null : o.id)}>
+              <span style={{ background: slotColor(o.colorSlot) }} />
+            </button>
+            <input
+              key={`name:${o.name}`} type="text" class="grow" defaultValue={o.name} aria-label="Option name"
+              onChange={(e) => {
+                const name = e.currentTarget.value.trim();
+                if (name) updateOption(d.id, o.id, { name });
+              }}
+            />
+            <span class="muted small opt-count">{count} activit{count === 1 ? 'y' : 'ies'}</span>
+            <button disabled={i === 0} aria-label="Move up" onClick={() => moveOption(d.id, o.id, -1)}>↑</button>
+            <button disabled={i === d.options.length - 1} aria-label="Move down" onClick={() => moveOption(d.id, o.id, 1)}>↓</button>
+            <button class="danger ghost" onClick={async () => {
+              if (await confirmDanger(`Delete the option “${o.name}”?`, `Its activities become “Not set” for ${d.name}.`)) removeOption(d.id, o.id);
+            }}>Delete</button>
+            {open && (
+              <div class="opt-swatches">
+                <SlotSwatches value={o.colorSlot} label={`Color for ${o.name}`} onPick={(slot) => updateOption(d.id, o.id, { colorSlot: slot })} />
+              </div>
+            )}
+          </div>
+        );
+      })}
+      <form class="opt-add" onSubmit={(e) => {
+        e.preventDefault();
+        const form = e.currentTarget as HTMLFormElement;
+        const name = (form.elements.namedItem('names') as HTMLInputElement).value.trim();
+        if (name) addOption(d.id, name);
+        form.reset();
+      }}>
+        <input name="names" type="text" class="grow" placeholder="Add an option" aria-label="New option" />
+        <button class="primary">Add</button>
+      </form>
+    </div>
+  );
+}
+
+/** An activity's option of a dimension: a segmented control for 2–3 options (plus Not set), a list for 4 or more. */
+function CategoryPicker({ a, d }: { a: Activity; d: Dimension }) {
+  const current = optionOf(a, d)?.id ?? '';
+  const opts = [...d.options.map((o) => ({ id: o.id, name: o.name, color: slotColor(o.colorSlot) })), { id: '', name: 'Not set', color: 'var(--line-2)' }];
+  return (
+    <div class="cat-picker" role="group" aria-label={d.name}>
+      <span class="muted small cat-label">{d.name}</span>
+      {d.options.length <= 3 ? (
+        <span class="segmented">
+          {opts.map((o) => (
+            <button key={o.id} class="seg small" aria-pressed={current === o.id} onClick={() => setActivityOption(a.id, d.id, o.id || null)}>
+              <span class="dot" style={{ background: o.color }} />{o.name}
+            </button>
+          ))}
+        </span>
+      ) : (
+        <span class="chip-select">
+          <span class="dot" style={{ background: opts.find((o) => o.id === current)!.color }} />
+          <select value={current} aria-label={d.name} onChange={(e) => setActivityOption(a.id, d.id, e.currentTarget.value || null)}>
+            {opts.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+          </select>
+          <Icon name="chevronDown" />
+        </span>
+      )}
     </div>
   );
 }
@@ -359,8 +506,8 @@ function ProfileRow({ p }: { p: Profile }) {
         }}
       />
       {isOpen ? <span class="badge">open</span> : <button onClick={() => switchProfile(p.id)}>Open</button>}
-      <button class="danger" disabled={isOpen} title={isOpen ? 'Open another profile first' : ''} onClick={() => {
-        if (confirm(`Delete profile "${p.name}" and ALL its activities, days and history? This cannot be undone (export a backup first).`)) {
+      <button class="danger" disabled={isOpen} title={isOpen ? 'Open another profile first' : ''} onClick={async () => {
+        if (await confirmDanger(`Delete the profile “${p.name}”?`, 'ALL its activities, days and history are deleted. This cannot be undone (export a backup first).')) {
           removeProfile(p.id);
         }
       }}>Delete</button>
@@ -387,8 +534,8 @@ function GroupRow({ g, first, last }: { g: Group; first: boolean; last: boolean 
       </label>
       <button disabled={first} aria-label="Move up" onClick={() => moveGroup(g.id, -1)}>↑</button>
       <button disabled={last} aria-label="Move down" onClick={() => moveGroup(g.id, 1)}>↓</button>
-      <button class="danger" onClick={() => {
-        if (confirm(`Delete group "${g.name}"? Its activities are kept and move to "no group".`)) removeGroup(g.id);
+      <button class="danger" onClick={async () => {
+        if (await confirmDanger(`Delete the group “${g.name}”?`, 'Its activities are kept and move to “no group”.')) removeGroup(g.id);
       }}>Delete</button>
     </li>
   );
@@ -434,9 +581,12 @@ function ActivityRow({ a, first, last }: { a: Activity; first: boolean; last: bo
       </label>
       <button disabled={first} aria-label="Move up" onClick={() => moveActivity(a.id, -1)}>↑</button>
       <button disabled={last} aria-label="Move down" onClick={() => moveActivity(a.id, 1)}>↓</button>
-      <button class="danger" aria-label="Remove" onClick={() => {
-        if (confirm('Remove this activity? Its history is kept and it can be restored.')) removeActivity(a.id);
+      <button class="danger" aria-label="Remove" onClick={async () => {
+        if (await confirmDanger(`Remove “${a.name}”?`, 'Its history is kept and it can be restored.', 'Remove')) removeActivity(a.id);
       }}>Remove</button>
+      {state.categories.length > 0 && (
+        <div class="cat-pickers">{state.categories.map((d) => <CategoryPicker key={d.id} a={a} d={d} />)}</div>
+      )}
     </li>
   );
 }
