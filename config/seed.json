@@ -28,7 +28,7 @@
         {
           "name": "Work",
           "on": true,
-          "activities": ["meeting", "task", "pr review", "communication", "setup", "prepare ticket"]
+          "activities": ["meeting", "task", "code review", "communication", "setup"]
         }
       ],
       "activities": ["break"]

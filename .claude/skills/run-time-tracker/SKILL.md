@@ -40,7 +40,7 @@ node .claude/skills/run-time-tracker/driver.mjs do --phone "ss check/phone-first
 
 | Step | Does |
 | --- | --- |
-| `seed` | adds a "Home" profile, imports the sample (`src/sample.ts`, also the app's `?demo` data) into the open one (renamed "Work"): 7 activities (Break has a 1 h target) + 1 removed, dimensions Focus and Company, 3 weeks of weekdays, today ending now with a session running. Without it you get the first-run state ("New here?" strip, seed activities, nothing tracked). |
+| `seed` | adds a "Home" profile, imports the sample (`src/sample.ts`, also the app's `?demo` data) into the open one (renamed "Work"): 6 activities (Break has a 1 h target) + 1 removed, dimensions Focus and Company, 3 weeks of weekdays, today ending now with a session running, buttons sized by usage with unused activities in the strip. Without it you get the first-run state ("New here?" strip, seed activities, nothing tracked). |
 | `goto main\|summary\|settings[#id]` | in-app navigation; section ids: `profiles groups categories activities appearance theme colors main-screen day device backup about` |
 | `click <sel>` / `hold <sel>` | tap (first match) / 800 ms long-press (opens the activity popup) |
 | `press <key>` / `fill <sel>=<text>` | keyboard (Escape = back) / type into a field |

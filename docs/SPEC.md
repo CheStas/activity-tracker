@@ -558,8 +558,9 @@ Every popup uses one dialog component.
   by Vite from the `<img src>`; all but the hero load lazily. Below 760 px the rows stack, text first.
 - **Demo (`?demo`):** the app opens the IndexedDB database `time-tracker-demo` instead of `time-tracker`,
   deletes it on every load and fills it with the sample (`src/sample.ts`, the same data the run skill seeds): one
-  "Work" profile, three weeks of weekdays, today running until now, theme following the system. The real database is
-  never opened, the theme mirror in localStorage is neither read nor written, and persistent storage is not requested.
+  "Work" profile, three weeks of weekdays, today running until now, theme following the system, buttons sized by
+  today's usage and unused activities moved to the strip. The real database is never opened, the theme mirror in
+  localStorage is neither read nor written, and persistent storage is not requested.
   A strip above the header on every page says it is a demo with sample data that a reload starts over, with **Start
   your own** → `app/` (no `?demo`). A demo open in another tab gives way when a new one wipes the database.
 - **PWA:** `public/app/manifest.webmanifest` with `scope` and `start_url` = `app/`, so the installed app opens straight

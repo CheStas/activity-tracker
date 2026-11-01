@@ -1,9 +1,10 @@
 // A profile export with realistic data: the demo (app/?demo) and the run skill's driver (through Settings → Backup →
-// Import) both load it. 7 activities (Break has a 1 h target) + one removed, two category dimensions (Focus, Company),
-// three weeks of weekdays, and today ending "now" with the last session still running.
+// Import) both load it. 6 activities (Break has a 1 h target) + one removed, two category dimensions (Focus, Company),
+// three weeks of weekdays, and today ending "now" with the last session still running. Buttons are sized by today's
+// usage, with unused activities in the strip.
 // Plain TypeScript with no imports, so Node runs it as is (type stripping) for the driver.
 export function sampleExport(now = Date.now()) {
-  const NAMES = ['Task', 'Meeting', 'PR Review', 'Break', 'Communication', 'Setup', 'Prepare Ticket'];
+  const NAMES = ['Task', 'Meeting', 'Code Review', 'Break', 'Communication', 'Setup'];
   const activities = NAMES.map((name, i) => ({
     id: `a${i}`, profileId: 'p', groupId: null, name, colorSlot: i, order: i, archived: false, hiddenForDayId: null,
     targetMin: name === 'Break' ? 60 : null,
@@ -24,7 +25,7 @@ export function sampleExport(now = Date.now()) {
   let n = 0;
   let seed = 11;
   const rand = () => ((seed = (seed * 9301 + 49297) % 233280) / 233280); // deterministic
-  const POOL = ['a0', 'a1', 'a2', 'a3', 'a0', 'a4', 'a6', 'a5', 'a0', 'old'];
+  const POOL = ['a0', 'a1', 'a2', 'a3', 'a0', 'a4', 'a5', 'a0', 'old'];
   for (let back = 20; back >= 0; back--) {
     const d = new Date(today0.getFullYear(), today0.getMonth(), today0.getDate() - back);
     const today = back === 0;
@@ -48,7 +49,7 @@ export function sampleExport(now = Date.now()) {
   }
   return {
     app: 'time-tracker', kind: 'profile', version: 4, exportedAt: now,
-    profile: { name: 'Work', settings: { introDismissed: true, themeMode: 'fixed', themeId: 'paper', popularity: false } },
+    profile: { name: 'Work', settings: { introDismissed: true, themeMode: 'fixed', themeId: 'paper', popularity: true, unusedStrip: true } },
     groups: [], activities, categories, days, segments,
   };
 }
