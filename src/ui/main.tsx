@@ -1,33 +1,23 @@
 // Main screen: welcome strip, header with live totals, the activity buttons, the unused strip, today's timeline and
-// group totals, all in one viewport; the footer (links, quick theme switch) sits below it.
-import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
+// group totals, all in one viewport; the footer (privacy note, links, quick settings) sits below it.
+import { useLayoutEffect, useRef, useState } from 'preact/hooks';
 import {
-  tap, visibleActivities, activeSegment, todayTotals, todayTotal, activityById, firstStart, isGroupOn, groupById, setSetting,
+  tap, visibleActivities, activeSegment, todayTotals, todayTotal, activityById, isGroupOn, groupById, setSetting,
 } from '../state.ts';
 import { gaps } from '../timeline.ts';
 import { slotColor } from '../theme.ts';
 import type { Activity, Layout } from '../types.ts';
-import { fmtDur, fmtHMS, fmtHM, fmtClock, fmtDayShort } from './util.ts';
-import { Icon, type IconName } from './icons.tsx';
+import { fmtDur, fmtHMS, fmtHM, fmtClock } from './util.ts';
 import { openActivityPopup } from './activityPopup.tsx';
-import { AboutLinks, ThemeSwatches, VERSION, currentTheme } from './about.tsx';
-import { openModal, useAppState, useNow } from './hooks.tsx';
+import { AboutLinks, MainScreenSwitch, PrivacyNote, ThemeSwatches, VERSION, currentTheme, layoutName } from './about.tsx';
+import { AppHeader, type Nav } from './header.tsx';
+import { useAppState, useNow } from './hooks.tsx';
 
 const LONG_PRESS_MS = 600;
 /** Timeline blocks this long or longer show their duration inside. */
 const LABEL_MIN_MS = 35 * 60000;
 
-interface Props {
-  onProfiles: () => void;
-  onSettings: (section?: string) => void;
-  onSummary: () => void;
-  onDayEditor: () => void;
-  onReset: () => void;
-  onFullscreen: () => void;
-  onQuit: () => void;
-}
-
-export function Main({ onProfiles, onSettings, onSummary, onDayEditor, onReset, onFullscreen, onQuit }: Props) {
+export function Main({ nav, onDayEditor }: { nav: Nav; onDayEditor: () => void }) {
   const state = useAppState();
   const now = useNow();
   const { pressed, handlers } = usePresses(onDayEditor);
@@ -51,7 +41,7 @@ export function Main({ onProfiles, onSettings, onSummary, onDayEditor, onReset, 
     <div class="main-page">
       <section id="view-main" class={`main-screen${fresh ? ' fresh' : ''}`}>
         {intro && <WelcomeStrip />}
-        <Header now={now} dayMs={dayMs} onProfiles={onProfiles} onSettings={() => onSettings()} onSummary={onSummary} onReset={onReset} onFullscreen={onFullscreen} onQuit={onQuit} />
+        <AppHeader nav={nav} page="main" />
         {fresh && main.length > 0 && (
           <p class="ready"><strong>Ready to start the day</strong> · Tap an activity to start tracking · hold one to set an earlier start</p>
         )}
@@ -80,7 +70,7 @@ export function Main({ onProfiles, onSettings, onSummary, onDayEditor, onReset, 
           </a>
         )}
       </section>
-      {footer && <Footer onSettings={onSettings} />}
+      {footer && <Footer onSettings={nav.onSettings} />}
     </div>
   );
 }
@@ -94,62 +84,6 @@ function WelcomeStrip() {
       <ThemeSwatches compact />
       <button class="got-it" onClick={() => setSetting('introDismissed', true)}>Got it</button>
     </section>
-  );
-}
-
-interface HeaderProps extends Omit<Props, 'onDayEditor' | 'onSettings'> {
-  now: number;
-  dayMs: number;
-  onSettings: () => void;
-}
-
-function Header({ now, dayMs, onProfiles, onSettings, onSummary, onReset, onFullscreen, onQuit }: HeaderProps) {
-  const state = useAppState();
-  const fullscreen = useFullscreen();
-  const open = activeSegment();
-  const active = open && activityById(open.activityId);
-  const first = firstStart();
-  return (
-    <header class="main-header">
-      {state.profiles.length > 1 && (
-        <button class="prof" aria-label={`Switch profile, ${state.profile.name} is open`} onClick={onProfiles}>
-          <span class="initial">{state.profile.name.trim().charAt(0).toUpperCase()}</span>
-          <span class="name hide-sm">{state.profile.name}</span>
-          <Icon name="chevronDown" />
-        </button>
-      )}
-      <div class="stat">
-        <span class="k">Today · {fmtDayShort(now)}</span>
-        <span class="v"><span class="num big">{fmtHMS(dayMs)}</span>{first !== null && <span class="muted since">since {fmtClock(first)}</span>}</span>
-      </div>
-      {/* While idle the header just says "Idle": no idle duration. */}
-      <div class="stat now">
-        <span class="k">Now</span>
-        <span class="v">
-          <span class="dot" style={{ background: active ? slotColor(active.colorSlot) : 'var(--line)' }} />
-          <span class="now-name">{open ? active?.name ?? 'Active' : 'Idle'}</span>
-          {open && <span class="num muted">{fmtDur(now - open.start)}</span>}
-        </span>
-      </div>
-      <div class="header-end">
-        <div class="stat clock">
-          <span class="k">Clock</span>
-          <span class="num big">{fmtClock(now)}</span>
-        </div>
-        <nav class="icons" aria-label="App">
-          <button class="icon round" aria-label="Summary" title="Summary" onClick={onSummary}><Icon name="summary" /></button>
-          <button class="icon round" aria-label="Settings" title="Settings" onClick={onSettings}><Icon name="settings" /></button>
-          <button class="icon round hide-sm" aria-label="Reset day" title="Reset day" onClick={onReset}><Icon name="reset" /></button>
-          <button class="icon round hide-sm" aria-label={fullscreen ? 'Leave full screen' : 'Full screen'} title="Full screen" onClick={onFullscreen}>
-            <Icon name={fullscreen ? 'minimize' : 'maximize'} />
-          </button>
-          <button class="icon round hide-sm" aria-label="Close app" title="Close app" onClick={onQuit}><Icon name="power" /></button>
-          <button class="icon round show-sm" aria-label="More: reset day, full screen, close app" title="More" onClick={() => openMoreMenu({ onReset, onFullscreen, onQuit, fullscreen })}>
-            <Icon name="more" />
-          </button>
-        </nav>
-      </div>
-    </header>
   );
 }
 
@@ -240,25 +174,6 @@ function Buttons({ main, rest, layout, sizing, totals, dayMs, now, pressed, hand
   );
 }
 
-/** Phone: Reset day, Full screen and Close app live in a ⋯ menu (a bottom sheet). */
-function openMoreMenu({ onReset, onFullscreen, onQuit, fullscreen }: Pick<Props, 'onReset' | 'onFullscreen' | 'onQuit'> & { fullscreen: boolean }) {
-  const item = (close: () => void, icon: IconName, label: string, fn: () => void) => (
-    <button class="menu-item" onClick={() => {
-      close();
-      fn();
-    }}><Icon name={icon} />{label}</button>
-  );
-  openModal((close) => (
-    <div class="dialog-body menu">
-      <h2 class="menu-title">More</h2>
-      {item(close, 'reset', 'Reset day', onReset)}
-      {item(close, fullscreen ? 'minimize' : 'maximize', fullscreen ? 'Leave full screen' : 'Full screen', onFullscreen)}
-      {item(close, 'power', 'Close app', onQuit)}
-      <button class="secondary wide" onClick={close}>Cancel</button>
-    </div>
-  ), { size: 'menu', closeButton: false });
-}
-
 /** Today's sessions as a bar of blocks (idle gaps in the track color), with hour labels above. */
 function DayTimeline({ now }: { now: number }) {
   const state = useAppState();
@@ -332,34 +247,31 @@ function GroupTotals({ now }: { now: number }) {
   );
 }
 
+/** The privacy note, then about, links, and the quick settings: theme and main screen. */
 function Footer({ onSettings }: { onSettings: (section?: string) => void }) {
+  const { layout } = useAppState().profile.settings;
+  const more = (section: string) => <button class="lnk lnk-muted" onClick={() => onSettings(section)}>More in Settings</button>;
   return (
     <footer id="footer" class="main-footer">
+      <PrivacyNote><button class="lnk lnk-muted" onClick={() => onSettings('backup')}>Export in Settings</button></PrivacyNote>
       <div class="about">
         <strong>Activity Tracker</strong>
-        <span class="muted">A chess clock for your work day. Your data stays in this browser.</span>
+        <span class="muted">A chess clock for your work day.</span>
         <span class="muted num small">{VERSION}</span>
       </div>
       <nav aria-label="About" class="links"><AboutLinks variant="footer" /></nav>
-      <div class="theme-switch" role="group" aria-label="Theme">
-        <span class="muted theme-head">
-          <span>Theme · <strong>{currentTheme().name}</strong></span>
-          <button class="lnk lnk-muted" onClick={() => onSettings('appearance')}>More in Settings</button>
-        </span>
-        <ThemeSwatches />
+      <div class="quick">
+        <div class="theme-switch" role="group" aria-label="Theme">
+          <span class="muted theme-head"><span>Theme · <strong>{currentTheme().name}</strong></span>{more('appearance')}</span>
+          <ThemeSwatches />
+        </div>
+        <div class="theme-switch" role="group" aria-label="Main screen">
+          <span class="muted theme-head"><span>Buttons · <strong>{layoutName(layout)}</strong></span>{more('main-screen')}</span>
+          <MainScreenSwitch />
+        </div>
       </div>
     </footer>
   );
-}
-
-function useFullscreen() {
-  const [on, setOn] = useState(Boolean(document.fullscreenElement));
-  useEffect(() => {
-    const fn = () => setOn(Boolean(document.fullscreenElement));
-    document.addEventListener('fullscreenchange', fn);
-    return () => document.removeEventListener('fullscreenchange', fn);
-  }, []);
-  return on;
 }
 
 /** An element's width, kept up to date. */

@@ -11,12 +11,13 @@ import {
   setActivityOption, optionOf,
 } from '../state.ts';
 import type { ComponentChildren } from 'preact';
-import type { Activity, Dimension, Group, Layout, Profile, Settings as AppSettings, WeekStart } from '../types.ts';
+import type { Activity, Dimension, Group, Profile, WeekStart } from '../types.ts';
 import { findTheme, lowContrastSlots, parseThemeFile, slotColor, themeFile, SLOT_NAMES, type Theme } from '../theme.ts';
 import { resolveWeekStart } from '../stats.ts';
 import { download, isoDay, fmtSwitch, slug } from './util.ts';
-import { BackBar, Icon } from './icons.tsx';
-import { AboutLinks, VERSION, currentTheme } from './about.tsx';
+import { Icon } from './icons.tsx';
+import { AboutLinks, LayoutSwitch, MAIN_TOGGLES, PrivacyNote, VERSION, currentTheme } from './about.tsx';
+import { AppHeader, type Nav } from './header.tsx';
 import { confirmDialog, useAppState } from './hooks.tsx';
 
 const MIN_SWITCH = [0, 15, 30, 60, 120, 180, 300];
@@ -30,16 +31,7 @@ const confirmDanger = (title: string, body: string, ok = 'Delete') => confirmDia
 const sectionId = (name: string) => name.toLowerCase();
 const scrollTo = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-const LAYOUTS: { id: Layout; label: string }[] = [{ id: 'tiles', label: 'Tiles' }, { id: 'rows', label: 'Rows' }, { id: 'circles', label: 'Circles' }];
-const TOGGLES: { key: keyof AppSettings; label: string; hint: string }[] = [
-  { key: 'popularity', label: 'Size buttons by today’s usage', hint: 'Tiles grow wider, rows taller, circles larger as you use them' },
-  { key: 'unusedStrip', label: 'Move unused activities to a strip', hint: 'Activities with no time today become small chips under the buttons' },
-  { key: 'showTimeline', label: 'Show today’s timeline', hint: 'The colored session bar at the bottom of the main screen' },
-  { key: 'showGroups', label: 'Show group totals', hint: 'Time per group and idle time, on one line under the timeline' },
-  { key: 'showFooter', label: 'Show the footer', hint: 'Links and the quick theme switch at the very bottom' },
-];
-
-export function Settings({ onBack, onDayEditor, section }: { onBack: () => void; onDayEditor: () => void; section?: string }) {
+export function Settings({ nav, onBack, onDayEditor, section }: { nav: Nav; onBack: () => void; onDayEditor: () => void; section?: string }) {
   const state = useAppState();
   const s = state.profile.settings;
   const live = state.activities.filter((a) => !a.archived);
@@ -70,7 +62,7 @@ export function Settings({ onBack, onDayEditor, section }: { onBack: () => void;
 
   return (
     <div class="settings-page">
-      <BackBar title="Settings" sub={state.profile.name} onBack={onBack} />
+      <AppHeader nav={nav} page="settings" title="Settings" onBack={onBack} />
       <div class="settings-layout">
         <nav class="section-nav" aria-label="Settings sections">
           {SECTIONS.map((n) => (
@@ -166,16 +158,10 @@ export function Settings({ onBack, onDayEditor, section }: { onBack: () => void;
               <h2>Main screen</h2>
               <div class="row">
                 <span class="row-label">Buttons</span>
-                <div class="segmented" role="group" aria-label="Button layout">
-                  {LAYOUTS.map((l) => (
-                    <button key={l.id} class="seg" aria-pressed={s.layout === l.id} onClick={() => setSetting('layout', l.id)}>
-                      <span class={`layout-icon ${l.id}`} aria-hidden="true"><i /><i /></span>{l.label}
-                    </button>
-                  ))}
-                </div>
+                <LayoutSwitch />
               </div>
               <div class="toggles">
-                {TOGGLES.map((t) => (
+                {MAIN_TOGGLES.map((t) => (
                   <Check key={t.key} checked={Boolean(s[t.key])} onChange={(v) => setSetting(t.key, v as never)} hint={t.hint}>{t.label}</Check>
                 ))}
               </div>
@@ -227,6 +213,7 @@ export function Settings({ onBack, onDayEditor, section }: { onBack: () => void;
           </section>
           <section id="backup">
             <h2>Backup</h2>
+            <PrivacyNote />
             <p class="muted">Export and import cover this profile only; import replaces its data and settings.</p>
             <div class="row">
               <button onClick={async () => download(`activity-tracker-${slug(state.profile.name)}-${isoDay(Date.now())}.json`, await exportData())}>Export JSON</button>

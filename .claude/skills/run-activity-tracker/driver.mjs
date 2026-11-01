@@ -70,14 +70,14 @@ async function newPage(browser, viewport) {
   // The dev server has no favicon: that 404 is expected.
   page.on('console', (m) => m.type() === 'error' && !m.text().includes('404') && errors.push(`console: ${m.text()}`));
   await page.goto(URL_);
-  await page.waitForSelector('.main-header');
+  await page.waitForSelector('#view-main');
   return { ctx, page };
 }
 
 // ---------- steps ----------
 
 const SAMPLE = join(tmpdir(), 'activity-tracker-sample.json');
-const back = (page) => page.click('.bar button[aria-label="Back"]');
+const back = (page) => page.click('header button[aria-label="Back"]');
 
 /** Seed through Settings: a second profile "Home", then import the sample into the open profile and name it "Work". */
 async function seed(page) {
@@ -92,7 +92,7 @@ async function seed(page) {
   await name.fill('Work');
   await name.press('Tab');
   await back(page);
-  await page.waitForSelector('.main-header');
+  await page.waitForSelector('#view-main');
 }
 
 /**
@@ -100,9 +100,9 @@ async function seed(page) {
  * goes back to main): a reload right after a change can drop it, because writes reach IndexedDB asynchronously.
  */
 async function goto(page, where) {
-  for (let i = 0; i < 5 && !(await page.locator('.main-header').count()); i++) await page.keyboard.press('Escape');
+  for (let i = 0; i < 5 && !(await page.locator('#view-main').count()); i++) await page.keyboard.press('Escape');
   while (await page.locator('.modal').count()) await page.keyboard.press('Escape');
-  await page.waitForSelector('.main-header');
+  await page.waitForSelector('#view-main');
   const [view, section] = where.split('#');
   if (view === 'summary') {
     await page.click('button[aria-label="Summary"]');
@@ -199,7 +199,7 @@ async function smoke(browser, viewport, tag) {
   await page.click('.modal button:has-text("Cancel")');
   await goto(page, 'summary');
   for (const p of ['Day', 'Week', 'Month', 'Custom']) {
-    await page.click(`.header-periods button:has-text("${p}")`);
+    await page.click(`.period-kinds button:has-text("${p}")`);
     await ss(page, `${tag}/06-summary-${p.toLowerCase()}`, true);
   }
   await page.click('.group-by button:has-text("Focus")');
@@ -285,12 +285,12 @@ async function docs(browser) {
   await setting(page, 'Tiles');
 
   await goto(page, 'summary');
-  await page.click('.header-periods button:has-text("Day")');
+  await page.click('.period-kinds button:has-text("Day")');
   await grab(page, 'summary', 5);
   await shot(page, '03-summary/1-day', true);
   await page.locator('.blocks.big .block:not(.idle)').nth(3).click();
   await grab(page, 'summary', 3);
-  await page.click('.header-periods button:has-text("Week")');
+  await page.click('.period-kinds button:has-text("Week")');
   await grab(page, 'summary', 5);
   await shot(page, '03-summary/2-week', true);
   await page.click('.group-by button:has-text("Focus")');
@@ -303,7 +303,7 @@ async function docs(browser) {
   await shot(page, '03-summary/3-week-grouped-by-focus', true);
   await top(page);
   await page.click('.group-by button:has-text("Activity")');
-  await page.click('.header-periods button:has-text("Month")');
+  await page.click('.period-kinds button:has-text("Month")');
   await grab(page, 'summary', 5);
   await shot(page, '03-summary/4-month', true);
   await page.click('.period-label');
@@ -340,10 +340,10 @@ async function docs(browser) {
   await shot(page, 'phone/3-more-menu');
   await page.keyboard.press('Escape');
   await goto(page, 'summary');
-  await page.click('.header-periods button:has-text("Day")');
+  await page.click('.period-kinds button:has-text("Day")');
   await grab(page, 'phone', 5);
   await shot(page, 'phone/4-summary-day', true);
-  await page.click('.header-periods button:has-text("Week")');
+  await page.click('.period-kinds button:has-text("Week")');
   await grab(page, 'phone', 4);
   await top(page, 500);
   await grab(page, 'phone', 4);

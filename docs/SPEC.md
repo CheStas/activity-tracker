@@ -107,9 +107,9 @@ the buttons cannot fit at all does the buttons area scroll, rather than clip). T
 by scrolling the page. All numbers use tabular figures so they do not jitter while ticking. All colors come from the
 theme (§16). Top to bottom:
 1. **Welcome strip** (new users only, see §6.1).
-2. **Header** (surface color, bottom border):
+2. **Header** (surface color, bottom border; the same header on every page, §6.3):
    - **Profile button**: the profile's initial in a square, its name and a chevron; opens the profile picker (§12).
-     Shown only with more than one profile.
+     Shown only with more than one profile. On other pages this place holds the back button and the page name.
    - "Today · Wed, Oct 28" (uppercase, muted), the day total `h:mm:ss` in mono, then "since 10:03" (start of the day's
      first activity) muted; nothing before the first activity.
    - "Now": a color dot, the active activity's name and its current run (`m:ss` under an hour, `h:mm:ss` after).
@@ -161,12 +161,23 @@ theme (§16). Top to bottom:
   timeline labels only every second hour; the "Tap to switch" hint is hidden. The page never scrolls sideways.
 
 ### 6.1 Footer and welcome strip
-- **Footer** (below the fold, toggle *Show the footer*, **on** by default): three columns that wrap on narrow screens:
-  1. "Activity Tracker", "A chess clock for your work day. Your data stays in this browser.", the version.
+- **Footer** (below the fold, toggle *Show the footer*, **on** by default):
+  - **Privacy note** first, full width (a `chip` box, radius 12 px): "**Privacy first: all your data stays in this
+    browser. No account and no internet connection needed. You are responsible for your data, so export a backup
+    regularly.**" and, on the right, an "Export in Settings" link (opens Settings → Backup), styled like "More in
+    Settings". The same note, without the link (the Export button is right below), heads Settings → Backup (§8).
+  - Then three columns that wrap on narrow screens:
+  1. "Activity Tracker", "A chess clock for your work day.", the version.
   2. Links: What is it?, Similar apps, Send feedback. Until those pages exist they open a placeholder popup.
-  3. **Theme quick switch**: one round swatch per installed theme (its background and two activity colors), the
-     current one ringed, "Theme · <name>" and a "More in Settings" link (opens Settings → Appearance). A tap applies the
-     theme to the open profile immediately, the same as picking it in Settings (§16).
+  3. **Quick settings** (the same settings as in Settings, changed for the open profile immediately):
+     - **Theme:** one round swatch per installed theme (its background and two activity colors), the current one
+       ringed, "Theme · <name>" and a "More in Settings" link (opens Settings → Appearance). A tap applies the theme,
+       the same as picking it in Settings (§16).
+     - **Main screen:** "Buttons · <layout>" and the Tiles / Rows / Circles segmented control (with the layout icons;
+       icons only below 760 px), then two
+       44 px icon toggles (`aria-pressed`, tooltip and label = the Settings label): *Size buttons by today's usage*
+       and *Move unused activities to a strip*; a pressed toggle is filled `text` with a `surface` icon. A "More in
+       Settings" link opens Settings → Appearance → Main screen.
 - **Welcome strip** (top, above the header) while the profile's `introDismissed` is false: "New here?", the first-run
   hint, the same three links, compact theme swatches and a **Got it** button that sets `introDismissed = true` for
   good. While it shows, the footer and the more hint are hidden (the links are at the top instead); afterwards the
@@ -191,6 +202,25 @@ theme (§16). Top to bottom:
   starts. You can still edit the closed day from Summary." (without a running activity the first sentence is
   dropped) · Cancel / **Reset day** (danger).
 
+### 6.3 One header on every page
+Every page (Main, Summary, Settings, the day editor and any later page) has the main screen's header (§6), so the
+day total, "Now" and the clock stay in view and the app buttons stay in the same place:
+- **Left:** on Main the profile button; on every other page a round 44 px **back** button and the page name, 20 px
+  semibold, with "· <profile>" muted (the profile name hidden below 760 px). Back = Esc (§6.2).
+- **Middle:** "Today" and "Now" exactly as on Main, ticking live.
+- **Right:** the clock and the same icon buttons (Summary, Settings, Reset day, Full screen, Close app; ⋯ More on a
+  phone). The button of the page that is open is marked (`aria-current="page"`, filled `text` with a `surface`
+  icon) and does nothing.
+- Controls that used to sit in a page's own header move to the top of its content: the Summary's period switcher
+  (§9), the day editor's ‹ day › stepper (§8).
+
+### 6.4 Back to top
+A round 56 px floating button (accent fill, `onAccent` up arrow, a soft shadow, 20 px from the bottom-right corner,
+above the safe area) appears on every page once it has scrolled down by half a screen, or half the way down when the
+page scrolls less than a screen; on Main that is when the footer comes into view. A tap scrolls smoothly back to the top (instantly with reduced motion). On a touch screen the
+buttons area can fill the whole screen and catch every swipe, so this is the way back up. It fades in and out and is
+hidden under open dialogs. Label "Back to top".
+
 ## 7. Activity popup (long-press)
 - Header: color square, name, "Today 3h 38m in 5 sessions · running" (and the target delta when set).
 - Today's sessions of the activity **in time order**, the running one last ("21:13 – now ● 0:03" in the activity
@@ -204,7 +234,7 @@ theme (§16). Top to bottom:
 
 ## 8. Settings
 A two-column page: a section list on the left (stacked above the content on narrow screens) and the content on the
-right, max 1240 px wide. Header: a round back button and "Settings · <profile>". The page uses the open profile's
+right, max 1240 px wide. Header: the shared header (§6.3) with "Settings · <profile>". The page uses the open profile's
 theme, so theme changes preview live. All controls are native (`button`, `input type=checkbox` inside a `label`), at
 least 44 px tall, with a visible focus ring.
 - **Section list:** Profiles, Groups, Categories, Activities, Appearance, Day, Device, Backup, About. A tap scrolls to
@@ -233,14 +263,17 @@ least 44 px tall, with a visible focus ring.
   Monday / Sunday / Saturday, used by the Week period, the calendar and the heatmap; minimum switch Off / 15 s / 30 s
   / 1 min (default) / 2 min / 3 min / 5 min (§4.2); auto-export a JSON file when a day closes; Edit timeline…
 - **Device:** start in full screen; keep the screen on (**on** by default; §10)
-- **Backup:** export the open profile to JSON, import JSON into the open profile (replaces that profile's data and
-  settings, after a confirmation; other profiles are untouched)
+- **Backup:** first the privacy note from the footer (§6.1, bold, in a `chip` box), then export the open profile to
+  JSON, import JSON into the open profile (replaces that profile's data and settings, after a confirmation; other
+  profiles are untouched)
 - **About:** What is it?, Similar apps, Send feedback (same targets as the footer), the version.
 - Link to the **day editor** (also reachable from the activity popup, §7, and from each summary day, §9): a timeline of one day's segments,
   editing and deleting segments, adding a range (activity + from + to/now), and clearing the whole day. Its bar runs
   from the first activity's start to the last activity's end (or now while one is running); idle rows appear only for
   gaps between activities.
-  - It opens on today (from the summary: on that day); ‹ › in its header step through the profile's earlier days (any closed day can be edited).
+  - Header: the shared header (§6.3) with "Day editor · <profile>". The first line of the page is a stepper:
+    ‹, the day ("Today · Thu, Oct 29" / "Wed, Oct 28"), ›.
+  - It opens on today (from the summary: on that day); ‹ › step through the profile's earlier days (any closed day can be edited).
   - A closed day is edited within its own start and end: no "now", no running session, and the "x min ago" shortcuts
     are hidden. Its snapshot total is updated, so the summary shows the edited day. Clearing a closed day keeps it
     (empty) so it can be rebuilt; the summary skips empty days.
@@ -249,9 +282,10 @@ least 44 px tall, with a visible focus ring.
 ## 9. Summary
 One scrolling page for a **period** of the open profile, every block a full-width card (max 1240 px), in this order.
 The period (Day, Week, Month, Custom) changes what each block shows, not the order. Durations read "8h 43m".
-1. **Header:** back, "Summary · Work", and the period switcher Day · Week · Month · Custom on the right (it wraps
-   under the title below 600 px). The last used period is remembered (`summaryPeriod`).
+1. **Header:** the shared header (§6.3) with "Summary · Work".
 2. **Period card:**
+   - First line: the period switcher Day · Week · Month · Custom (full width below 600 px). The last used period is
+     remembered (`summaryPeriod`).
    - ‹ [period label ▾] ›, a jump chip when not on the current period ("Today", "This week", "This month", "Last 7
      days" for custom), and **Group by** on the right (Activity · each dimension; hidden without dimensions; scrolls
      sideways in its own box on a phone). ‹ › step by a day, week or month; a custom range by its own length.

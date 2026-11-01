@@ -19,7 +19,11 @@ Reference mockups (clickable prototypes with a Tweaks panel for theme, layout an
 
 | Element | Rule |
 | --- | --- |
-| Page header (Settings, Summary, day editor) | `surface`, 1 px `line` bottom border, padding 10–12 × 16 px; round 44 px back button on `chip`; title 20 px semibold + "· \<profile>" muted |
+| Page header (every page) | one header for all pages (`AppHeader`, SPEC §6.3): `surface`, 1 px `line` bottom border, padding 14 × 28 px (10 × 14 px on a phone); left the profile button (Main) or a round 44 px back button on `chip` + page name 20 px semibold + "· \<profile>" muted; then Today, Now, clock and the round 44 px icon buttons; the open page's button filled `text` |
+| Page controls | what a page used to put in its header goes to the top of its content (Summary period switcher, day editor stepper); new pages do the same and never add a second bar |
+| Floating button | only "Back to top" (SPEC §6.4): 56 px round, accent + `onAccent` icon, shadow `0 4px 16px var(--shadow)`, 20 px from bottom-right; don't add others |
+| Icon toggle | 44 px round, `chip` when off, `text` fill + `surface` icon when on (`aria-pressed`); always with a tooltip and `aria-label` |
+| Note box | `chip`, radius 12 px, padding 12 × 16 px, 14 px semibold text, link or button on the right (privacy note) |
 | Card | `surface`, 1 px `line` border, radius 16 px, padding 12 × 16 × 14 px; 12 px between cards; title 15 px semibold, hint 12 px muted on the right |
 | Figure tile | card style; label 12 px muted, value 22 px mono semibold, sub-line 12 px muted |
 | Main buttons | radius 22 px (tiles), 18 px (rows), round (circles) |
@@ -30,7 +34,9 @@ Reference mockups (clickable prototypes with a Tweaks panel for theme, layout an
 | Max width | Summary and Settings 1240 px centered; main Rows 860 px |
 
 Shared CSS classes for these: `.card`, `.card-head`, `.fig`, `.segmented` / `.seg`, `button.primary` /
-`.secondary` / `.danger-fill` / `.pill`, `confirmDialog()` and `openModal()` in `src/ui/hooks.tsx`.
+`.secondary` / `.danger-fill` / `.pill`, `button.icon.round` (`.toggle` for icon toggles), `.note`, `confirmDialog()`
+and `openModal()` in `src/ui/hooks.tsx`, `AppHeader` and `ScrollTop` in `src/ui/header.tsx`, `PrivacyNote` and
+`LayoutSwitch` in `src/ui/about.tsx`.
 
 ## Type and numbers
 

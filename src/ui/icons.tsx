@@ -1,5 +1,4 @@
 // Line icons (24×24, stroked with currentColor) so the header buttons share one look.
-import type { ComponentChildren } from 'preact';
 
 const PATHS = {
   summary: '<path d="M4 20h16"/><path d="M7 16v-5"/><path d="M12 16V6"/><path d="M17 16v-8"/>',
@@ -17,6 +16,9 @@ const PATHS = {
   more: '<circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/>',
   calendar: '<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18"/><path d="M8 3v4"/><path d="M16 3v4"/>',
   chevronRight: '<path d="M9 6l6 6-6 6"/>',
+  arrowUp: '<path d="M12 19V5"/><path d="M6 11l6-6 6 6"/>',
+  sizeByUsage: '<rect x="3" y="12" width="7" height="8" rx="1.5"/><rect x="13" y="4" width="8" height="16" rx="1.5"/>',
+  unusedStrip: '<rect x="3" y="4" width="18" height="10" rx="2"/><path d="M4 19h3"/><path d="M10.5 19h3"/><path d="M17 19h3"/>',
 };
 
 export type IconName = keyof typeof PATHS;
@@ -26,13 +28,4 @@ export const Icon = ({ name }: { name: IconName }) => (
     viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"
     aria-hidden="true" dangerouslySetInnerHTML={{ __html: PATHS[name] }}
   />
-);
-
-/** Header bar of a sub-screen: back button, title, and optional controls on the right. */
-export const BackBar = ({ title, sub, onBack, children }: { title: string; sub?: string; onBack: () => void; children?: ComponentChildren }) => (
-  <header class="bar">
-    <button class="icon round" aria-label="Back" onClick={onBack}><Icon name="back" /></button>
-    <h1>{title}{sub && <span class="muted"> · {sub}</span>}</h1>
-    {children}
-  </header>
 );

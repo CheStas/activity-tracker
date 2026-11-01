@@ -14,7 +14,8 @@ import {
   NOT_SET, QUICK_RANGES, WEEK_ROWS_AFTER, type DayNum, type Period, type Piece, type PeriodStats, type DayStats, type QuickRange,
 } from '../stats.ts';
 import { fmtClock, fmtHM, fmtHours, fmtHoursShort, fmtRange, fmtDayShort, targetText } from './util.ts';
-import { BackBar, Icon } from './icons.tsx';
+import { Icon } from './icons.tsx';
+import { AppHeader, type Nav } from './header.tsx';
 import { useAppState, useNow } from './hooks.tsx';
 
 // ---------- shared with the day editor ----------
@@ -142,7 +143,7 @@ const isRemoved = (a: Activity | undefined) => !a || a.archived;
 
 // ---------- the page ----------
 
-export function Summary({ onBack, onDayEditor }: { onBack: () => void; onDayEditor: () => void }) {
+export function Summary({ nav, onBack, onDayEditor }: { nav: Nav; onBack: () => void; onDayEditor: () => void }) {
   const state = useAppState();
   const s = state.profile.settings;
   const tick = useNow();
@@ -181,17 +182,7 @@ export function Summary({ onBack, onDayEditor }: { onBack: () => void; onDayEdit
 
   return (
     <div class="summary-page">
-      <BackBar title="Summary" sub={state.profile.name} onBack={onBack}>
-        <div class="segmented header-periods" role="group" aria-label="Period">
-          {PERIODS.map(({ kind, label }) => (
-            <button key={kind} class="seg" aria-pressed={period.kind === kind} onClick={() => {
-              if (kind === period.kind) return;
-              const anchor = today >= period.from && today <= period.to ? today : period.kind === 'custom' ? period.to : period.from;
-              setPeriod(periodOf(kind, anchor, weekStart));
-            }}>{label}</button>
-          ))}
-        </div>
-      </BackBar>
+      <AppHeader nav={nav} page="summary" title="Summary" onBack={onBack} />
       <div class="summary">
         {past === null ? <p class="muted">Loading…</p> : <>
           <PeriodCard
@@ -276,6 +267,15 @@ function PeriodCard({ period, setPeriod, today, weekStart, byDay }: PeriodCardPr
 
   return (
     <section class="card period-card" aria-label="Period">
+      <div class="segmented period-kinds" role="group" aria-label="Period kind">
+        {PERIODS.map(({ kind, label: name }) => (
+          <button key={kind} class="seg" aria-pressed={period.kind === kind} onClick={() => {
+            if (kind === period.kind) return;
+            const anchor = today >= period.from && today <= period.to ? today : period.kind === 'custom' ? period.to : period.from;
+            setPeriod(periodOf(kind, anchor, weekStart));
+          }}>{name}</button>
+        ))}
+      </div>
       <div class="period-line">
         <span class="period-nav">
           <button class="icon round plain" aria-label="Previous period" onClick={() => setPeriod(stepPeriod(period, -1))}><Icon name="prev" /></button>

@@ -5,14 +5,15 @@ import { state, liveActivities, assignRange, clearDay, dayList, openPastDay } fr
 import { duration } from '../timeline.ts';
 import type { Day } from '../types.ts';
 import { slotColor } from '../theme.ts';
-import { fmtDate, fmtDur, fmtRange } from './util.ts';
+import { fmtDate, fmtDayShort, fmtDur, fmtRange } from './util.ts';
 import { TimePicker, clampTime } from './timePicker.tsx';
 import { openSessionEditor, confirmDeleteSession } from './activityPopup.tsx';
 import { TimelineBar, activityRange, logRows, GapRow, dayLookup } from './summary.tsx';
-import { BackBar, Icon } from './icons.tsx';
+import { Icon } from './icons.tsx';
+import { AppHeader, type Nav } from './header.tsx';
 import { confirmDialog, openModal, useAppState } from './hooks.tsx';
 
-export function DayEditor({ onBack }: { onBack: () => void }) {
+export function DayEditor({ nav, onBack }: { nav: Nav; onBack: () => void }) {
   useAppState();
   const [days, setDays] = useState<Day[]>([]);
   // Reload the list when a new day starts; leaving the editor goes back to today.
@@ -33,17 +34,17 @@ export function DayEditor({ onBack }: { onBack: () => void }) {
 
   return (
     <section class="view">
-      <BackBar title={isToday ? "Today's timeline" : fmtDate(day.startedAt)} onBack={onBack}>
-        <nav class="icons">
+      <AppHeader nav={nav} page="day-editor" title="Day editor" onBack={onBack} />
+      <div class="page">
+        <nav class="day-step" aria-label="Day">
           <button class="icon round" aria-label="Previous day" title="Previous day" disabled={i <= 0} onClick={() => step(days[i - 1])}>
             <Icon name="prev" />
           </button>
+          <h2>{isToday ? `Today · ${fmtDayShort(day.startedAt)}` : fmtDate(day.startedAt)}</h2>
           <button class="icon round" aria-label="Next day" title="Next day" disabled={i < 0 || i >= days.length - 1} onClick={() => step(days[i + 1])}>
             <Icon name="next" />
           </button>
         </nav>
-      </BackBar>
-      <div class="page">
         <div>{segments.length > 0 && <TimelineBar from={from} to={to} segments={segments} lookup={lookup} />}</div>
         <ul class="sessions">
           {rows.length ? rows.map(({ seg, gap, t }) => {

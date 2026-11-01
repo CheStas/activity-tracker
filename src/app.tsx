@@ -8,6 +8,7 @@ import { Settings } from './ui/settings.tsx';
 import { Summary } from './ui/summary.tsx';
 import { DayEditor } from './ui/dayEditor.tsx';
 import { ModalHost, closeTopModal, confirmDialog, messageDialog } from './ui/hooks.tsx';
+import { ScrollTop, type Nav } from './ui/header.tsx';
 import { openProfilePicker } from './ui/profiles.tsx';
 import { download, fmtDayShort, fmtHours, isoDay, slug } from './ui/util.ts';
 import '@fontsource/geist-sans/latin-400.css';
@@ -51,22 +52,22 @@ function App() {
     setSection(to);
     setView('settings');
   };
+  // The header is the same on every page, so are its buttons.
+  const nav: Nav = {
+    onProfiles: () => openProfilePicker(toSettings),
+    onSettings: toSettings,
+    onSummary: () => setView('summary'),
+    onReset: confirmReset,
+    onFullscreen: toggleFullscreen,
+    onQuit: quit,
+  };
   return (
     <>
-      {view === 'main' && (
-        <Main
-          onProfiles={() => openProfilePicker(toSettings)}
-          onSettings={toSettings}
-          onSummary={() => setView('summary')}
-          onDayEditor={() => toEditor('main')}
-          onReset={confirmReset}
-          onFullscreen={toggleFullscreen}
-          onQuit={quit}
-        />
-      )}
-      {view === 'settings' && <Settings section={section} onBack={toMain} onDayEditor={() => toEditor('settings')} />}
-      {view === 'summary' && <Summary onBack={toMain} onDayEditor={() => toEditor('summary')} />}
-      {view === 'day-editor' && <DayEditor onBack={() => setView(editorFrom)} />}
+      {view === 'main' && <Main nav={nav} onDayEditor={() => toEditor('main')} />}
+      {view === 'settings' && <Settings nav={nav} section={section} onBack={toMain} onDayEditor={() => toEditor('settings')} />}
+      {view === 'summary' && <Summary nav={nav} onBack={toMain} onDayEditor={() => toEditor('summary')} />}
+      {view === 'day-editor' && <DayEditor nav={nav} onBack={() => setView(editorFrom)} />}
+      <ScrollTop />
       <ModalHost />
     </>
   );

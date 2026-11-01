@@ -30,7 +30,7 @@ Desktop (1440×900) and phone (390×844): first run, seed, tap, long-press popup
 To look at one specific thing, script steps (one argument each, run in order in one session):
 
 ```sh
-node .claude/skills/run-activity-tracker/driver.mjs do seed "goto summary" "click .header-periods button:has-text('Week')" "click .group-by button:has-text('Company')" "text .fig-value" "ss check/week-company full"
+node .claude/skills/run-activity-tracker/driver.mjs do seed "goto summary" "click .period-kinds button:has-text('Week')" "click .group-by button:has-text('Company')" "text .fig-value" "ss check/week-company full"
 node .claude/skills/run-activity-tracker/driver.mjs do seed "layout Rows" "hold .act:has-text('Task')" "ss check/rows-popup"
 node .claude/skills/run-activity-tracker/driver.mjs do seed "theme Nord" "goto summary" "ss check/nord-summary"
 node .claude/skills/run-activity-tracker/driver.mjs do --phone "ss check/phone-first-run"
@@ -49,7 +49,7 @@ node .claude/skills/run-activity-tracker/driver.mjs do --phone "ss check/phone-f
 
 Options: `--phone`, `--url <url>` (another server, e.g. `http://localhost:8765/`), `--out <dir>`.
 Useful selectors: `.act` (main buttons, `.act.active` running), `.prof` (profile button), `button[aria-label="Summary"|"Settings"|"Reset day"|"Close app"]`,
-`button[aria-label^="More"]` (phone), `.modal` / `.modal-confirm` (dialogs), `.header-periods`, `.group-by`, `.period-label`, `.picker`,
+`button[aria-label^="More"]` (phone), `.modal` / `.modal-confirm` (dialogs), `.period-kinds`, `.group-by`, `.period-label`, `.picker`,
 `button.day-row`, `.share-row.option`, `.blocks.big .block`.
 
 ## Unit tests and types
