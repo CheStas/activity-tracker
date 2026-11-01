@@ -3,7 +3,9 @@ import type { Activity, Day, Dimension, Group, Profile, Segment, Settings } from
 import { migrateSettings, normalizeActivity } from './seed.ts';
 import { completeTheme, type Theme } from './theme.ts';
 
-export const APP = 'activity-tracker';
+export const APP = 'time-tracker';
+/** Exports from before the rename to Time Tracker still import. */
+const OLD_APP = 'activity-tracker';
 const VERSION = 4;
 
 export interface ProfileData {
@@ -43,7 +45,7 @@ interface ImportFile extends Partial<ProfileData> {
  */
 export function readImport(raw: unknown, profileId: string, uid: () => string): ProfileData & { settings: Partial<Settings>; themes: Theme[] } {
   const file = raw as ImportFile | null;
-  if (file?.app !== APP) throw new Error('Not an activity-tracker export');
+  if (file?.app !== APP && file?.app !== OLD_APP) throw new Error('Not a Time Tracker export');
   const ids = new Map<string, string>();
   const id = (old: string) => ids.get(old) ?? ids.set(old, uid()).get(old)!;
   const groupIds = new Set((file.groups ?? []).map((g) => g.id));

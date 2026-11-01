@@ -255,7 +255,7 @@ function Footer({ onSettings }: { onSettings: (section?: string) => void }) {
     <footer id="footer" class="main-footer">
       <PrivacyNote><button class="lnk lnk-muted" onClick={() => onSettings('backup')}>Export in Settings</button></PrivacyNote>
       <div class="about">
-        <strong>Activity Tracker</strong>
+        <strong>Time Tracker</strong>
         <span class="muted">A chess clock for your work day.</span>
         <span class="muted num small">{VERSION}</span>
       </div>

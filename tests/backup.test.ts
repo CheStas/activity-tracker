@@ -56,7 +56,7 @@ test('a profile export round-trips into another profile with new ids and intact 
 
 test('an export from before profiles (v1) imports with its settings', () => {
   const v1 = {
-    app: 'activity-tracker', version: 1,
+    app: 'time-tracker', version: 1,
     activities: [{ ...act('a1', null), colorSlot: undefined, color: '#eb5757', profileId: undefined, groupId: undefined }],
     days: [], segments: [], settings: [{ key: 'theme', value: 'light' }, { key: 'minSwitchSec', value: 30 }],
   };
@@ -78,17 +78,22 @@ test('categories and activity options round-trip with new ids; picks of unknown 
   assert.deepEqual(r.activities[0].categories, { [d.id]: d.options[0].id });
   assert.deepEqual(r.activities[1].categories, {});
   // Files from before categories import with none.
-  assert.deepEqual(readImport({ app: 'activity-tracker', kind: 'profile', profile: {} }, 'pB', ids()).categories, []);
+  assert.deepEqual(readImport({ app: 'time-tracker', kind: 'profile', profile: {} }, 'pB', ids()).categories, []);
 });
 
 test('8-slot embedded themes get slots 9–16 on import', () => {
   const custom = { ...PAPER, builtin: undefined, id: 'custom-1', slots: PAPER.slots.slice(0, 8) };
-  const r = readImport({ app: 'activity-tracker', kind: 'profile', profile: {}, themes: [custom] }, 'pB', ids());
+  const r = readImport({ app: 'time-tracker', kind: 'profile', profile: {}, themes: [custom] }, 'pB', ids());
   assert.equal(r.themes[0].slots.length, 16);
 });
 
+test('exports from before the rename (app "activity-tracker") still import', () => {
+  const r = readImport({ app: 'activity-tracker', kind: 'profile', profile: { settings: { minSwitchSec: 30 } } }, 'pB', ids());
+  assert.equal(r.settings.minSwitchSec, 30);
+});
+
 test('other files are rejected', () => {
-  assert.throws(() => readImport({ app: 'something-else' }, 'pB', ids()), /Not an activity-tracker export/);
+  assert.throws(() => readImport({ app: 'something-else' }, 'pB', ids()), /Not a Time Tracker export/);
   assert.throws(() => readImport(null, 'pB', ids()));
 });
 
@@ -98,7 +103,7 @@ test('groups stored with a default and a per-day toggle become a plain on flag',
 });
 
 test('files from before unusedStrip keep the strip exactly when popularity sizing was on', () => {
-  const file = (settings: object) => ({ app: 'activity-tracker', kind: 'profile', profile: { settings } });
+  const file = (settings: object) => ({ app: 'time-tracker', kind: 'profile', profile: { settings } });
   assert.equal(readImport(file({ popularity: true }), 'pB', ids()).settings.unusedStrip, true);
   assert.equal(readImport(file({ popularity: false }), 'pB', ids()).settings.unusedStrip, false);
   assert.equal(readImport(file({ popularity: true, unusedStrip: false }), 'pB', ids()).settings.unusedStrip, false);

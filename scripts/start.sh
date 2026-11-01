@@ -21,7 +21,7 @@ esac
 APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 PORT="${PORT:-8765}"
 URL="http://localhost:${PORT}/app/" # the site's root is the landing page; the app lives under app/
-PROFILE="${PROFILE:-$HOME/.local/share/activity-tracker/chromium}"
+PROFILE="${PROFILE:-$HOME/.local/share/time-tracker/chromium}"
 
 BROWSER="${BROWSER:-$(command -v chromium-browser || command -v chromium || command -v google-chrome || true)}"
 [ -n "$BROWSER" ] || { echo "No Chromium/Chrome found; set BROWSER=..." >&2; exit 1; }

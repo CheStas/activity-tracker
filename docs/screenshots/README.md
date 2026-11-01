@@ -9,7 +9,7 @@ behaves is in [SPEC.md](../SPEC.md); sizes and rules in [DESIGN.md](../DESIGN.md
 
 | Main screen | Summary | Phone |
 | --- | --- | --- |
-| ![Switching activities, the long-press popup and the profile switcher](demo-main.gif) | ![Summary: day, week grouped by Focus, month and the period picker](demo-summary.gif) | ![Phone: tiles, activity sheet, More menu and Summary](demo-phone.gif) |
+| ![Switching activities, the long-press popup and the profile switcher](demo-main.webp) | ![Summary: day, week grouped by Focus, month and the period picker](demo-summary.webp) | ![Phone: tiles, activity sheet, More menu and Summary](demo-phone.webp) |
 | Tap to switch, hold for the activity popup, open the profile switcher | Day → Week → Group by Focus → open a day → Month → pick a range | Two tiles per row, bottom sheets, ⋯ More, Summary |
 
 ## 1. Main screen

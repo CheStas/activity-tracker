@@ -197,7 +197,7 @@ async function confirmReset() {
 async function quit() {
   const name = runningName();
   const ok = await confirmDialog({
-    title: 'Close Activity Tracker?',
+    title: 'Close Time Tracker?',
     body: name ? `${name} keeps counting while the app is closed. Open the app again to stop it or switch.` : 'Nothing is running.',
     ok: 'Close app',
   });

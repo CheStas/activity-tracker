@@ -1,7 +1,6 @@
-| Terms of use: free, as is, may be retired; backups are the user's job; feedback may be used freely. || Privacy: tracked data stays in the browser; anonymous usage stats (§20) with an on/off switch; feedback; hosting. |# Activity Tracker — Specification
+| Terms of use: free, as is, may be retired; backups are the user's job; feedback may be used freely. || Privacy: tracked data stays in the browser; anonymous usage stats (§20) with an on/off switch; feedback; hosting. |# Time Tracker — Specification
 
-The source requirements are in [`../custom-pomodoro-tracking.md`](../custom-pomodoro-tracking.md). This document is the
-authoritative spec: it covers those requirements plus every decision made since. Update it whenever a requirement changes.
+This document is the authoritative spec: it covers requirements plus every decision made since. Update it whenever a requirement changes.
 
 ## 1. Purpose
 A full-screen web app for a Linux PC/laptop with a touchscreen. It works like a **chess clock** for the work day:
@@ -19,7 +18,7 @@ A full-screen web app for a Linux PC/laptop with a touchscreen. It works like a 
 | Site | `dist/` is a small static site (§19): the landing page at the root, the app under `app/`, plain pages next to it. |
 | Main run | `scripts/start.sh`: rebuilds `dist/` when sources are newer (needs `npm`; with no `npm` it serves the existing build), then opens Chromium with a dedicated profile. Modes: **app window** (default; title bar, resizable, closable), `--kiosk` (locked full screen), `--browser` (normal window with tabs). All modes share the same data. The script and its server exit when the window closes. |
 | Static hosting | The built `dist/` folder works from any static web server, including a subpath, because Vite builds with relative paths (`base: './'`). Data is per browser, per device, per site address (IndexedDB); there is no sync. Use **HTTPS** for screen keep-awake and persistent storage. Plain HTTP works too: IDs fall back to `crypto.getRandomValues` because `crypto.randomUUID` needs a secure context. Safari may evict data after about 7 days without visits unless the site is added to the home screen. |
-| Plain HTML (optional) | `npm run build:single` builds `dist-single/activity-tracker.html` (all JS and CSS inlined via `vite-plugin-singlefile`), a single file to open by double-click (browsers block module files on `file://`). No screen keep-awake. **Its data is separate** from the localhost version (a different origin); move data between them with export/import. Rebuild after code changes. |
+| Plain HTML (optional) | `npm run build:single` builds `dist-single/time-tracker.html` (all JS and CSS inlined via `vite-plugin-singlefile`), a single file to open by double-click (browsers block module files on `file://`). No screen keep-awake. **Its data is separate** from the localhost version (a different origin); move data between them with export/import. Rebuild after code changes. |
 | Device | Linux PC/laptop touchscreen; the layout is responsive, with large touch targets |
 | Backup | JSON export/import in settings, **one profile per file** (§12); optional automatic JSON download when a day closes |
 | Seed data | `config/seed.json`, bundled at build time (§14) |
@@ -168,7 +167,7 @@ theme (§16). Top to bottom:
     regularly.**" and, on the right, an "Export in Settings" link (opens Settings → Backup), styled like "More in
     Settings". The same note, without the link (the Export button is right below), heads Settings → Backup (§8).
   - Then three columns that wrap on narrow screens:
-  1. "Activity Tracker", "A chess clock for your work day.", the version.
+  1. "Time Tracker", "A chess clock for your work day.", the version.
   2. Links: What is it? (the site's landing page, §19), Similar apps (`/similar/`, §19), Send feedback (the feedback form, §18, §20). In the
      single-file build What is it? and Similar apps open a popup saying the page is on the website.
   3. **Quick settings** (the same settings as in Settings, changed for the open profile immediately):
@@ -201,7 +200,7 @@ theme (§16). Top to bottom:
 - **Full screen is optional.** The ⛶ button toggles document full screen. The "Start in full screen" setting enters it
   on the first tap, because browsers require a user gesture. While in full screen, Esc is captured (Keyboard Lock) so
   it keeps meaning "back"; **hold Esc** (about 2 s) to leave full screen.
-- **⏻ Close app:** asks first ("Close Activity Tracker?" · "Task keeps counting while the app is closed. Open the app
+- **⏻ Close app:** asks first ("Close Time Tracker?" · "Task keeps counting while the app is closed. Open the app
   again to stop it or switch." / idle: "Nothing is running." · Cancel / **Close app**), then closes the window, which
   also stops `start.sh` and its server. A running activity keeps counting while the app is closed (time is derived
   from the start timestamp). When the browser refuses to let the page close the window (a normal tab or a `file://`
@@ -372,7 +371,7 @@ Imported themes are shared by all profiles (§16).
 - **Upgrade from a version without profiles:** all existing activities and days move into a profile named
   "Default", which also takes over the old settings.
 - **Export/import is per profile.** Export writes the open profile (name, settings, groups, categories, activities
-  with their options, days, segments) to `activity-tracker-<profile>-<date>.json`; when the profile uses imported themes, they are embedded
+  with their options, days, segments) to `time-tracker-<profile>-<date>.json`; when the profile uses imported themes, they are embedded
   (`themes`) and installed on import. Import replaces the open profile's data and settings with the
   file's (its name is kept) and never touches other profiles. All ids are renewed on import, so a file exported from
   one profile can be imported into another, or into a copy of the app elsewhere, without clashes. Exports from the
@@ -544,14 +543,20 @@ Every popup uses one dialog component.
 - Every site page has the same header (logo + name → `/`, **Open the app**) and a footer with the other pages.
 - The pages are plain HTML, so they load fast and can be indexed. Their only script is `src/site/site.ts`: usage stats
   (§20) and the privacy page's on/off switch.
+- **Search and link previews:** the site lives at `https://taptimetracker.app/`. Every site page has a
+  `<link rel="canonical">` to its URL there; the landing page also has Open Graph and Twitter card tags (image
+  `public/og.png`, 1200×630, written by `npm run screenshots`) and `WebApplication` JSON-LD. `public/robots.txt` points
+  to `public/sitemap.xml` (landing, similar, privacy, terms; add new pages there). The app (`app/`) is `noindex`, so
+  the landing page is what ranks and `app/?demo` is never a duplicate. Copy says "time tracker", the phrase people
+  search for ("activity tracker" means fitness bands).
 - **Landing page:** hand-written copy (not spec wording), in this order: hero (headline, a lead that ends on privacy:
   no account, nothing leaves the device; **Try the live demo** → `app/?demo`, **Open the app**, a line saying the demo
-  is sandboxed, the main-screen GIF); five feature rows that alternate text and image (one-tap switching, backdating
-  via hold, privacy with a card of four promises instead of a screenshot, the Summary GIF, the phone GIF); a privacy
+  is sandboxed, the main-screen animation); five feature rows that alternate text and image (one-tap switching, backdating
+  via hold, privacy with a card of four promises instead of a screenshot, the Summary animation, the phone animation); a privacy
   panel that repeats the promise; a grid of smaller features; a closing call to action. Privacy is a main selling
   point, so it appears in all three places. Images are `docs/screenshots/` (`npm run screenshots`), bundled
   by Vite from the `<img src>`; all but the hero load lazily. Below 760 px the rows stack, text first.
-- **Demo (`?demo`):** the app opens the IndexedDB database `activity-tracker-demo` instead of `activity-tracker`,
+- **Demo (`?demo`):** the app opens the IndexedDB database `time-tracker-demo` instead of `time-tracker`,
   deletes it on every load and fills it with the sample (`src/sample.ts`, the same data the run skill seeds): one
   "Work" profile, three weeks of weekdays, today running until now, theme following the system. The real database is
   never opened, the theme mirror in localStorage is neither read nor written, and persistent storage is not requested.

@@ -47,7 +47,7 @@ export function sampleExport(now = Date.now()) {
     });
   }
   return {
-    app: 'activity-tracker', kind: 'profile', version: 4, exportedAt: now,
+    app: 'time-tracker', kind: 'profile', version: 4, exportedAt: now,
     profile: { name: 'Work', settings: { introDismissed: true, themeMode: 'fixed', themeId: 'paper', popularity: false } },
     groups: [], activities, categories, days, segments,
   };

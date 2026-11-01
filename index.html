@@ -3,21 +3,46 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Activity Tracker — know where your day went</title>
-  <meta name="description" content="One big button per activity: tap when you switch, see your day, week and month laid out. Free, no account, and what you track never leaves your device.">
+  <title>Time Tracker — a one-tap time tracker that stays on your device</title>
+  <meta name="description" content="A free one-tap time tracker: one big button per activity, tap when you switch, see your day, week and month laid out. No account, and what you track never leaves your device.">
+  <link rel="canonical" href="https://taptimetracker.app/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Time Tracker">
+  <meta property="og:url" content="https://taptimetracker.app/">
+  <meta property="og:title" content="Time Tracker — know where your day went">
+  <meta property="og:description" content="One big button per activity: tap when you switch, see your day, week and month laid out. Free, no account, and what you track never leaves your device.">
+  <meta property="og:image" content="https://taptimetracker.app/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="The Time Tracker main screen: one tile per activity with today’s time">
+  <meta name="twitter:card" content="summary_large_image">
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "Time Tracker",
+      "url": "https://taptimetracker.app/",
+      "description": "A one-tap time tracker: one big button per activity, tap when you switch, see your day, week and month. No account; everything stays on your device.",
+      "applicationCategory": "ProductivityApplication",
+      "operatingSystem": "Any (web browser)",
+      "browserRequirements": "Requires a modern browser with JavaScript and IndexedDB",
+      "image": "https://taptimetracker.app/og.png",
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+    }
+  </script>
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/src/site/site.css">
   <script type="module" src="/src/site/site.ts"></script>
 </head>
 <body class="landing">
   <header class="site-header">
-    <a class="brand" href="./"><img src="./favicon.svg" alt="">Activity Tracker</a>
+    <a class="brand" href="./"><img src="./favicon.svg" alt="">Time Tracker</a>
     <a class="button" href="./app/">Open the app</a>
   </header>
   <main>
     <section class="hero">
-      <h1>Know where your day actually went.</h1>
-      <p class="lead">One big button for each thing you do. Tap when you switch. By evening you see the meetings, the
+      <h1>Know where your day actually went</h1>
+      <p class="lead">A one-tap time tracker: one big button for each thing you do. Tap when you switch. By evening you see the meetings, the
         reviews and the “quick questions” laid out hour by hour, without filling in a single timesheet. And it stays
         yours: no account, and nothing you track ever leaves your device.</p>
       <div class="actions">
@@ -27,7 +52,7 @@
       <p class="fine">The demo runs on three weeks of sample data in its own sandbox. Nothing you do there touches your
         real tracker. Free.</p>
       <figure class="shot hero-shot">
-        <img src="./docs/screenshots/demo-main.gif" width="960" height="600"
+        <img src="./docs/screenshots/demo-main.webp" width="960" height="600"
           alt="Tapping between activities: the running tile lights up and today’s timeline grows along the bottom">
       </figure>
     </section>
@@ -84,7 +109,7 @@
           the whole summary regroups around them.</p>
       </div>
       <figure class="shot">
-        <img src="./docs/screenshots/demo-summary.gif" width="960" height="600" loading="lazy"
+        <img src="./docs/screenshots/demo-summary.webp" width="960" height="600" loading="lazy"
           alt="The summary moving from a day to a week grouped by focus, then to a month heatmap">
       </figure>
     </section>
@@ -96,7 +121,7 @@
           screen and it opens like any other app.</p>
       </div>
       <figure class="shot">
-        <img src="./docs/screenshots/demo-phone.gif" width="300" height="649" loading="lazy"
+        <img src="./docs/screenshots/demo-phone.webp" width="300" height="649" loading="lazy"
           alt="The app on a phone: tiles, the activity sheet, the More menu and the summary">
       </figure>
     </section>

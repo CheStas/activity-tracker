@@ -6,7 +6,7 @@ import type { Theme } from './theme.ts';
 
 /** app/?demo: a throwaway database next to the real one, wiped on every load and filled with the sample (state.init). */
 export const DEMO = typeof location !== 'undefined' && new URLSearchParams(location.search).has('demo');
-const DB_NAME = DEMO ? 'activity-tracker-demo' : 'activity-tracker';
+const DB_NAME = DEMO ? 'time-tracker-demo' : 'time-tracker';
 const VERSION = 4;
 
 interface Records {

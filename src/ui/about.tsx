@@ -141,7 +141,7 @@ export function UsageStats() {
       </div>
       <p class="muted small">
         {!statsChoice() && browserOptsOut() && 'Your browser asks sites not to track, so this is off until you turn it on. '}
-        It is your choice, and you can turn it off. Please consider leaving it on: Activity Tracker is free, and these
+        It is your choice, and you can turn it off. Please consider leaving it on: Time Tracker is free, and these
         counts are the only way to know anyone uses it. If nobody does, it gets no more updates and will be retired.{' '}
         <a href="../privacy/">What is collected</a>
       </p>

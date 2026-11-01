@@ -1,6 +1,6 @@
 {
-  "name": "Activity Tracker",
-  "short_name": "Activities",
+  "name": "Time Tracker",
+  "short_name": "Time Tracker",
   "description": "A chess clock for your work day: one tap switches the activity, all data stays on your device.",
   "id": "./",
   "start_url": "./",

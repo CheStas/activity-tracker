@@ -3,9 +3,9 @@
 // import, then runs one of:
 //   smoke             walk every screen and popup, screenshot each, exit 1 on page errors
 //   do <step>...      run steps in one session (see STEPS below), e.g. do seed "goto summary" "ss summary full"
-//   docs              regenerate docs/screenshots (PNGs, gallery shots and the demo GIFs; GIFs need ImageMagick)
+//   docs              regenerate docs/screenshots (PNGs, gallery shots, the demo animations and public/og.png; animations need ImageMagick)
 // Options: --phone (390×844, default 1440×900), --url <url> (default http://localhost:5199/app/), --out <dir>.
-// Screenshots land in .claude/skills/run-activity-tracker/out/ (git-ignored) unless --out is given.
+// Screenshots land in .claude/skills/run-time-tracker/out/ (git-ignored) unless --out is given.
 import { chromium } from 'playwright-core';
 import { spawn, execFileSync } from 'node:child_process';
 import { mkdirSync, rmSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
@@ -76,7 +76,7 @@ async function newPage(browser, viewport) {
 
 // ---------- steps ----------
 
-const SAMPLE = join(tmpdir(), 'activity-tracker-sample.json');
+const SAMPLE = join(tmpdir(), 'time-tracker-sample.json');
 const back = (page) => page.click('header button[aria-label="Back"]');
 
 /** Seed through Settings: a second profile "Home", then import the sample into the open profile and name it "Work". */
@@ -251,11 +251,12 @@ async function site(page, tag) {
   if ((await page.locator('.act').count()) !== realActs) errors.push('the demo changed the real profile');
 }
 
-// ---------- docs: the repo's screenshot gallery and demo GIFs ----------
+// ---------- docs: the repo's screenshot gallery, demo animations and the link preview ----------
 
 async function docs(browser) {
   const DOCS = join(ROOT, 'docs/screenshots');
-  const FRAMES = join(tmpdir(), 'activity-tracker-frames');
+  const FRAMES = join(tmpdir(), 'time-tracker-frames');
+  const OG = join(ROOT, 'public/og.png');
   rmSync(FRAMES, { recursive: true, force: true });
   const count = {};
   const shot = async (page, name, full = false) => {
@@ -353,6 +354,13 @@ async function docs(browser) {
   for (let i = 0; i < 3; i++) await page.click('button[aria-label="Previous period"]');
   await shot(page, '03-summary/6-empty-period');
 
+  // The link preview (og:image) for the site: the networks show 1200×630; taken larger so the tiles fit, scaled down below.
+  await goto(page, 'main');
+  await page.setViewportSize({ width: 1440, height: 756 });
+  await page.waitForTimeout(250);
+  await page.screenshot({ path: OG });
+  await page.setViewportSize(DESKTOP);
+
   await step(page, 'theme Graphite');
   await shot(page, '01-main-screen/4-graphite-theme');
   await page.click('button[aria-label="Reset day"]');
@@ -389,21 +397,22 @@ async function docs(browser) {
   await shot(page, 'phone/6-settings-categories');
   await ctx.close();
 
-  // ----- GIFs and PNG size (ImageMagick) -----
+  // ----- animations and PNG size (ImageMagick) -----
   try {
     execFileSync('magick', ['-version'], { stdio: 'ignore' });
   } catch {
-    console.warn('ImageMagick (magick) not found: PNGs written, GIFs and PNG compression skipped');
+    console.warn('ImageMagick (magick) not found: PNGs written, animations and PNG compression skipped');
     return;
   }
-  // No dithering: it speckles the flat backgrounds. OptimizePlus merges identical frames into longer ones.
-  for (const [gif, width] of [['main', 960], ['summary', 960], ['phone', 300]]) {
-    const frames = readdirSync(join(FRAMES, gif)).sort().map((f) => join(FRAMES, gif, f));
-    execFileSync('magick', ['-delay', '45', '-loop', '0', ...frames, '-resize', `${width}x`, '+dither', '-colors', '255', '-layers', 'OptimizePlus', join(DOCS, `demo-${gif}.gif`)]);
+  // Lossless animated WebP: a quarter of the GIF's size, and no 256-colour banding or dithering on the text.
+  for (const [anim, width] of [['main', 960], ['summary', 960], ['phone', 300]]) {
+    const frames = readdirSync(join(FRAMES, anim)).sort().map((f) => join(FRAMES, anim, f));
+    execFileSync('magick', ['-delay', '45', '-loop', '0', ...frames, '-resize', `${width}x`, '-define', 'webp:lossless=true', '-define', 'webp:method=6', join(DOCS, `demo-${anim}.webp`)]);
   }
   const pngs = (dir) => readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? pngs(join(dir, e.name)) : e.name.endsWith('.png') ? [join(dir, e.name)] : []));
-  for (const f of pngs(DOCS)) execFileSync('magick', [f, '-strip', '+dither', '-colors', '256', `PNG8:${f}`]);
-  console.log(`docs/screenshots regenerated (${pngs(DOCS).length} PNGs, 3 GIFs)`);
+  execFileSync('magick', [OG, '-resize', '1200x630', OG]);
+  for (const f of [...pngs(DOCS), OG]) execFileSync('magick', [f, '-strip', '+dither', '-colors', '256', `PNG8:${f}`]);
+  console.log(`docs/screenshots and public/og.png regenerated (${pngs(DOCS).length} PNGs, 3 animations)`);
 }
 
 // ---------- main ----------

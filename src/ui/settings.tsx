@@ -216,7 +216,7 @@ export function Settings({ nav, onBack, onDayEditor, section }: { nav: Nav; onBa
             <PrivacyNote />
             <p class="muted">Export and import cover this profile only; import replaces its data and settings.</p>
             <div class="row">
-              <button onClick={async () => download(`activity-tracker-${slug(state.profile.name)}-${isoDay(Date.now())}.json`, await exportData())}>Export JSON</button>
+              <button onClick={async () => download(`time-tracker-${slug(state.profile.name)}-${isoDay(Date.now())}.json`, await exportData())}>Export JSON</button>
               <label class="button">Import JSON<input type="file" accept="application/json" hidden onChange={onImport} /></label>
             </div>
           </section>
@@ -224,7 +224,7 @@ export function Settings({ nav, onBack, onDayEditor, section }: { nav: Nav; onBa
             <h2>About</h2>
             <div class="row"><AboutLinks variant="settings" /></div>
             <UsageStats />
-            <p class="muted num small">Activity Tracker · {VERSION}</p>
+            <p class="muted num small">Time Tracker · {VERSION}</p>
           </section>
         </div>
       </div>

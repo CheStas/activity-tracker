@@ -5,12 +5,12 @@
   "scripts": {
     "dev": "vite",
     "build": "npm run typecheck && vite build",
-    "build:single": "vite build --mode single && mv dist-single/app/index.html dist-single/activity-tracker.html && rmdir dist-single/app",
+    "build:single": "vite build --mode single && mv dist-single/app/index.html dist-single/time-tracker.html && rmdir dist-single/app",
     "preview": "vite preview",
     "typecheck": "tsc",
     "test": "vitest run",
-    "smoke": "node .claude/skills/run-activity-tracker/driver.mjs smoke",
-    "screenshots": "node .claude/skills/run-activity-tracker/driver.mjs docs",
+    "smoke": "node .claude/skills/run-time-tracker/driver.mjs smoke",
+    "screenshots": "node .claude/skills/run-time-tracker/driver.mjs docs",
     "start": "scripts/start.sh",
     "start:browser": "scripts/start.sh --browser",
     "start:kiosk": "scripts/start.sh --kiosk"

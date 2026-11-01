@@ -1,17 +1,17 @@
-# Activity Tracker
+# Time Tracker
 
 A touchscreen "chess clock" for the work day. Tap an activity to start it; tapping another one switches to it, and
 tapping the active one stops everything. It tracks today's total, a total per activity and the current run, and you can
 backdate a switch ("I actually started this at 14:30"). The Summary shows any day, week, month or range, split by
 activity or by your own categories.
 
-![The main screen: tap an activity to switch, hold it for its sessions](docs/screenshots/demo-main.gif)
+![The main screen: tap an activity to switch, hold it for its sessions](docs/screenshots/demo-main.webp)
 
 More screens, desktop and phone: **[docs/screenshots](docs/screenshots/README.md)**.
 
 | Summary | Phone |
 | --- | --- |
-| ![Summary: day, week grouped by Focus, month and the period picker](docs/screenshots/demo-summary.gif) | ![Phone: tiles, activity sheet, More menu and Summary](docs/screenshots/demo-phone.gif) |
+| ![Summary: day, week grouped by Focus, month and the period picker](docs/screenshots/demo-summary.webp) | ![Phone: tiles, activity sheet, More menu and Summary](docs/screenshots/demo-phone.webp) |
 
 Docs: [docs/SPEC.md](docs/SPEC.md) (the full spec), [docs/DESIGN.md](docs/DESIGN.md) (layout rules for changes
 without a new design), [docs/SIMILAR-TOOLS.md](docs/SIMILAR-TOOLS.md) (comparable apps).
@@ -33,7 +33,7 @@ changed, then serves it on `http://localhost:8765` and opens the app at `/app/`.
 `npm start`, `npm run start:browser`, `npm run start:kiosk`.
 
 Closing the window (or the in-app ⏻ button) also stops the script and its local server.
-To start it at login, copy `pomodoro-tracker.desktop` to `~/.config/autostart/` and fix the path in `Exec=`.
+To start it at login, copy `time-tracker.desktop` to `~/.config/autostart/` and fix the path in `Exec=`.
 
 ### Develop
 ```sh
@@ -42,14 +42,14 @@ npm run build       # type-check + build to dist/
 npm test            # Vitest
 npm run typecheck
 npm run smoke       # headless Chrome walks every screen with sample data, fails on page errors
-npm run screenshots # regenerate docs/screenshots and the demo GIFs (needs ImageMagick for the GIFs)
+npm run screenshots # regenerate docs/screenshots and the demo animations (needs ImageMagick for those)
 ```
 The driver behind the last two (and how to script your own checks) is described in
-[.claude/skills/run-activity-tracker/SKILL.md](.claude/skills/run-activity-tracker/SKILL.md).
+[.claude/skills/run-time-tracker/SKILL.md](.claude/skills/run-time-tracker/SKILL.md).
 
 ### Optional: plain HTML file
 ```sh
-npm run build:single   # -> dist-single/activity-tracker.html, open it by double-click
+npm run build:single   # -> dist-single/time-tracker.html, open it by double-click
 ```
 This file does not keep the screen on, and its data is **separate** from `scripts/start.sh` (a different browser
 origin). Use export/import to move data between them. Rebuild it after code changes.
@@ -107,7 +107,7 @@ See `docs/SPEC.md` §20 for what is collected; `privacy/index.html` says the sam
 - First-run profiles, groups, activities and default settings come from [`config/seed.json`](config/seed.json).
   Edit it before the first start (or on a fresh profile/origin); later changes are made in Settings.
 - Imported themes are shared by all profiles; an export embeds the imported themes its profile uses.
-- Stored in IndexedDB in the Chromium profile `~/.local/share/activity-tracker/chromium`, for the origin
+- Stored in IndexedDB in the Chromium profile `~/.local/share/time-tracker/chromium`, for the origin
   `http://localhost:8765`. Always use the same port and profile, or you will see an empty database.
 - Back up with **Settings → Export JSON**, one file per profile. **Import JSON** replaces only the open profile. You can also turn on auto-export on day close.
 
