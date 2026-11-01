@@ -2,6 +2,7 @@
 // "Back to top" button.
 import { useEffect, useState } from 'preact/hooks';
 import { activeSegment, activityById, firstStart, todayTotal } from '../state.ts';
+import { DEMO } from '../db.ts';
 import { slotColor } from '../theme.ts';
 import { fmtDur, fmtHMS, fmtClock, fmtDayShort } from './util.ts';
 import { Icon, type IconName } from './icons.tsx';
@@ -42,51 +43,60 @@ export function AppHeader({ nav, page, title, onBack }: Props) {
     ><Icon name={icon} /></button>
   );
   return (
-    <header class="app-header">
-      {onBack ? (
-        <span class="page-title">
-          <button class="icon round" aria-label="Back" title="Back" onClick={onBack}><Icon name="back" /></button>
-          <h1>{title}<span class="muted hide-sm"> · {state.profile.name}</span></h1>
-        </span>
-      ) : state.profiles.length > 1 && (
-        <button class="prof" aria-label={`Switch profile, ${state.profile.name} is open`} onClick={nav.onProfiles}>
-          <span class="initial">{state.profile.name.trim().charAt(0).toUpperCase()}</span>
-          <span class="name hide-sm">{state.profile.name}</span>
-          <Icon name="chevronDown" />
-        </button>
+    <>
+      {DEMO && (
+        <section class="welcome demo" aria-label="Demo">
+          <strong>Demo</strong>
+          <span class="muted">Sample data in a throwaway profile: play freely, a reload starts it over. Your own data is not touched.</span>
+          <a class="got-it" href="./">Start your own</a>
+        </section>
       )}
-      <div class="stat">
-        <span class="k">Today · {fmtDayShort(now)}</span>
-        <span class="v"><span class="num big">{fmtHMS(todayTotal(now))}</span>{first !== null && <span class="muted since">since {fmtClock(first)}</span>}</span>
-      </div>
-      {/* While idle the header just says "Idle": no idle duration. */}
-      <div class="stat now">
-        <span class="k">Now</span>
-        <span class="v">
-          <span class="dot" style={{ background: active ? slotColor(active.colorSlot) : 'var(--line)' }} />
-          <span class="now-name">{open ? active?.name ?? 'Active' : 'Idle'}</span>
-          {open && <span class="num muted">{fmtDur(now - open.start)}</span>}
-        </span>
-      </div>
-      <div class="header-end">
-        <div class="stat clock">
-          <span class="k">Clock</span>
-          <span class="num big">{fmtClock(now)}</span>
+      <header class="app-header">
+        {onBack ? (
+          <span class="page-title">
+            <button class="icon round" aria-label="Back" title="Back" onClick={onBack}><Icon name="back" /></button>
+            <h1>{title}<span class="muted hide-sm"> · {state.profile.name}</span></h1>
+          </span>
+        ) : state.profiles.length > 1 && (
+          <button class="prof" aria-label={`Switch profile, ${state.profile.name} is open`} onClick={nav.onProfiles}>
+            <span class="initial">{state.profile.name.trim().charAt(0).toUpperCase()}</span>
+            <span class="name hide-sm">{state.profile.name}</span>
+            <Icon name="chevronDown" />
+          </button>
+        )}
+        <div class="stat">
+          <span class="k">Today · {fmtDayShort(now)}</span>
+          <span class="v"><span class="num big">{fmtHMS(todayTotal(now))}</span>{first !== null && <span class="muted since">since {fmtClock(first)}</span>}</span>
         </div>
-        <nav class="icons" aria-label="App">
-          {navButton('summary', 'Summary', 'summary', nav.onSummary)}
-          {navButton('settings', 'Settings', 'settings', () => nav.onSettings())}
-          <button class="icon round hide-sm" aria-label="Reset day" title="Reset day" onClick={nav.onReset}><Icon name="reset" /></button>
-          <button class="icon round hide-sm" aria-label={fullscreen ? 'Leave full screen' : 'Full screen'} title="Full screen" onClick={nav.onFullscreen}>
-            <Icon name={fullscreen ? 'minimize' : 'maximize'} />
-          </button>
-          <button class="icon round hide-sm" aria-label="Close app" title="Close app" onClick={nav.onQuit}><Icon name="power" /></button>
-          <button class="icon round show-sm" aria-label="More: reset day, full screen, close app" title="More" onClick={() => openMoreMenu(nav, fullscreen)}>
-            <Icon name="more" />
-          </button>
-        </nav>
-      </div>
-    </header>
+        {/* While idle the header just says "Idle": no idle duration. */}
+        <div class="stat now">
+          <span class="k">Now</span>
+          <span class="v">
+            <span class="dot" style={{ background: active ? slotColor(active.colorSlot) : 'var(--line)' }} />
+            <span class="now-name">{open ? active?.name ?? 'Active' : 'Idle'}</span>
+            {open && <span class="num muted">{fmtDur(now - open.start)}</span>}
+          </span>
+        </div>
+        <div class="header-end">
+          <div class="stat clock">
+            <span class="k">Clock</span>
+            <span class="num big">{fmtClock(now)}</span>
+          </div>
+          <nav class="icons" aria-label="App">
+            {navButton('summary', 'Summary', 'summary', nav.onSummary)}
+            {navButton('settings', 'Settings', 'settings', () => nav.onSettings())}
+            <button class="icon round hide-sm" aria-label="Reset day" title="Reset day" onClick={nav.onReset}><Icon name="reset" /></button>
+            <button class="icon round hide-sm" aria-label={fullscreen ? 'Leave full screen' : 'Full screen'} title="Full screen" onClick={nav.onFullscreen}>
+              <Icon name={fullscreen ? 'minimize' : 'maximize'} />
+            </button>
+            <button class="icon round hide-sm" aria-label="Close app" title="Close app" onClick={nav.onQuit}><Icon name="power" /></button>
+            <button class="icon round show-sm" aria-label="More: reset day, full screen, close app" title="More" onClick={() => openMoreMenu(nav, fullscreen)}>
+              <Icon name="more" />
+            </button>
+          </nav>
+        </div>
+      </header>
+    </>
   );
 }
 

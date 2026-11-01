@@ -4,7 +4,9 @@ import type { Activity, Day, Dimension, Group, Profile, Segment } from './types.
 import type { ProfileData } from './backup.ts';
 import type { Theme } from './theme.ts';
 
-const DB_NAME = 'activity-tracker';
+/** app/?demo: a throwaway database next to the real one, wiped on every load and filled with the sample (state.init). */
+export const DEMO = typeof location !== 'undefined' && new URLSearchParams(location.search).has('demo');
+const DB_NAME = DEMO ? 'activity-tracker-demo' : 'activity-tracker';
 const VERSION = 4;
 
 interface Records {
@@ -44,10 +46,24 @@ function open() {
       if (e.oldVersion < 3) db.createObjectStore('themes', { keyPath: 'id' });
       if (e.oldVersion < 4) db.createObjectStore('categories', { keyPath: 'id' }).createIndex('profileId', 'profileId');
     };
-    req.onsuccess = () => resolve(req.result);
+    req.onsuccess = () => {
+      // A demo opened in another tab wipes the database: let it (this tab's demo is stale from then on).
+      if (DEMO) req.result.onversionchange = () => req.result.close();
+      resolve(req.result);
+    };
     req.onerror = () => reject(req.error);
   });
   return dbPromise;
+}
+
+/** Delete the demo database, before it is opened. Never the real one. */
+export function wipeDemo() {
+  if (!DEMO || dbPromise) throw new Error('wipeDemo: only the demo database, before it is opened');
+  return new Promise<void>((resolve, reject) => {
+    const req = indexedDB.deleteDatabase(DB_NAME);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+  });
 }
 
 const done = (tx: IDBTransaction) =>

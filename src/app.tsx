@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useState } from 'preact/hooks';
 import { parseHash, routeHash, type Route, type View } from './route.ts';
 import { init, subscribe, checkRollover, resetDay, state, notify, activeSegment, activityById, todayTotal } from './state.ts';
 import { cssVars, findTheme, resolveTheme } from './theme.ts';
+import { DEMO } from './db.ts';
 import { Main } from './ui/main.tsx';
 import { Settings } from './ui/settings.tsx';
 import { Summary } from './ui/summary.tsx';
@@ -105,13 +106,14 @@ function applyTheme() {
   const mirror = s.themeMode === 'fixed'
     ? { fixed: vars }
     : { light: cssVars(findTheme(state.themes, s.lightThemeId, false)), dark: cssVars(findTheme(state.themes, s.darkThemeId, true)) };
+  if (DEMO) return; // the mirror is the real app's
   try {
     localStorage.setItem('theme-vars', JSON.stringify(mirror));
   } catch {}
 }
 
 async function start() {
-  navigator.storage?.persist?.();
+  if (!DEMO) navigator.storage?.persist?.();
   await init();
   applyTheme();
   // Follow system: switch with the OS setting (notify re-renders what shows the current theme).

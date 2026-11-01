@@ -56,7 +56,8 @@ origin). Use export/import to move data between them. Rebuild it after code chan
 
 ### Optional: any static web server
 Run `npm run build` and copy `dist/` to any static host (a subpath works too). The root is the landing page (with
-privacy and terms pages next to it); the app is at `app/` and can be installed from there as an app. Each browser on each device keeps its
+privacy and terms pages next to it); the app is at `app/` and can be installed from there as an app, and `app/?demo`
+is a demo on sample data in its own throwaway database. Each browser on each device keeps its
 own data; nothing syncs, so use export/import to move data. Prefer HTTPS: on plain HTTP the screen isn't kept awake
 and storage may be evicted.
 

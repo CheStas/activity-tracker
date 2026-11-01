@@ -531,14 +531,27 @@ Every popup uses one dialog component.
 
 | Path | Source | Content |
 |---|---|---|
-| `/` | `index.html` | Landing page: what the app does, **Open the app** (header and main button). No redirect for returning users. |
+| `/` | `index.html` | Landing page (below). No redirect for returning users. |
 | `/app/` | `app/index.html` | The app (the PWA). |
+| `/app/?demo` | `app/index.html` | The demo: the app on sample data in a throwaway database (below). |
 | `/privacy/` | `privacy/index.html` | Privacy: no account, no server, data stays in the browser. |
 | `/terms/` | `terms/index.html` | Terms of use: free, as is, backups are the user's job. |
 
 - Every site page has the same header (logo + name → `/`, **Open the app**) and a footer with the other pages.
-- The pages are plain HTML with no script, so they load fast and can be indexed. Their content is short for now and
-  grows later (demo, screenshots, similar tools from `docs/SIMILAR-TOOLS.md`).
+- The pages are plain HTML with no script, so they load fast and can be indexed.
+- **Landing page:** hand-written copy (not spec wording), in this order: hero (headline, a lead that ends on privacy:
+  no account, nothing leaves the device; **Try the live demo** → `app/?demo`, **Open the app**, a line saying the demo
+  is sandboxed, the main-screen GIF); five feature rows that alternate text and image (one-tap switching, backdating
+  via hold, privacy with a card of four promises instead of a screenshot, the Summary GIF, the phone GIF); a privacy
+  panel that repeats the promise; a grid of smaller features; a closing call to action. Privacy is a main selling
+  point, so it appears in all three places. Images are `docs/screenshots/` (`npm run screenshots`), bundled
+  by Vite from the `<img src>`; all but the hero load lazily. Below 760 px the rows stack, text first.
+- **Demo (`?demo`):** the app opens the IndexedDB database `activity-tracker-demo` instead of `activity-tracker`,
+  deletes it on every load and fills it with the sample (`src/sample.ts`, the same data the run skill seeds): one
+  "Work" profile, three weeks of weekdays, today running until now, theme following the system. The real database is
+  never opened, the theme mirror in localStorage is neither read nor written, and persistent storage is not requested.
+  A strip above the header on every page says it is a demo with sample data that a reload starts over, with **Start
+  your own** → `app/` (no `?demo`). A demo open in another tab gives way when a new one wipes the database.
 - **PWA:** `public/app/manifest.webmanifest` with `scope` and `start_url` = `app/`, so the installed app opens straight
   in the app and never shows the site pages. Icons: `public/favicon.svg` (also the site's favicon) and PNGs rendered
   from it (`public/app/icon-192.png`, `icon-512.png`). There is no service worker yet, so the app needs the network

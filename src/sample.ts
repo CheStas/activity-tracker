@@ -1,6 +1,7 @@
-// A profile export with realistic data, imported through Settings → Backup → Import:
-// 7 activities (Break has a 1 h target) + one removed, two category dimensions (Focus, Company),
+// A profile export with realistic data: the demo (app/?demo) and the run skill's driver (through Settings → Backup →
+// Import) both load it. 7 activities (Break has a 1 h target) + one removed, two category dimensions (Focus, Company),
 // three weeks of weekdays, and today ending "now" with the last session still running.
+// Plain TypeScript with no imports, so Node runs it as is (type stripping) for the driver.
 export function sampleExport(now = Date.now()) {
   const NAMES = ['Task', 'Meeting', 'PR Review', 'Break', 'Communication', 'Setup', 'Prepare Ticket'];
   const activities = NAMES.map((name, i) => ({

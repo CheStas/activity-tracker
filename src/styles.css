@@ -116,6 +116,8 @@ a.lnk { display: inline-flex; align-items: center; justify-content: center; gap:
 .welcome .links { display: flex; flex-wrap: wrap; gap: 4px; }
 .got-it { margin-left: auto; min-height: 40px; padding: 0 16px; border-radius: 999px; border: 0; background: var(--text); color: var(--bg); font-size: 14px; font-weight: 600; }
 .got-it:hover { background: var(--text); filter: brightness(1.1); }
+/* app/?demo: the strip above the header on every page; "Start your own" opens the app without ?demo. */
+a.got-it { display: inline-flex; align-items: center; text-decoration: none; }
 
 .app-header {
   display: flex; flex-wrap: wrap; align-items: center; gap: 16px 36px; padding: 14px var(--pad-x);

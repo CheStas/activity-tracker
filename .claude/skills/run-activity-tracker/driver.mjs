@@ -12,7 +12,7 @@ import { mkdirSync, rmSync, writeFileSync, readdirSync, existsSync } from 'node:
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
-import { sampleExport } from './sample-data.mjs';
+import { sampleExport } from '../../../src/sample.ts';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, '../../..');
@@ -111,6 +111,16 @@ async function goto(page, where) {
     await page.click('button[aria-label="Settings"]');
     if (section) await page.evaluate((id) => document.getElementById(id)?.scrollIntoView({ behavior: 'instant' }), section);
   }
+}
+
+/**
+ * Summary → Week or Month. Early in the week or month the current period holds a day or two of the sample (in headless
+ * Chrome the week starts on Sunday), so step back to the previous, full one.
+ */
+async function period(page, kind) {
+  await page.click(`.period-kinds button:has-text("${kind}")`);
+  await page.waitForTimeout(200);
+  if ((await page.locator('button.day-row').count()) < 3) await page.click('button[aria-label="Previous period"]');
 }
 
 /** Long-press (the activity popup needs 600 ms down). */
@@ -226,8 +236,19 @@ async function site(page, tag) {
     await ss(page, `${tag}/${name}`);
   }
   await page.goto(new URL('../', URL_).href);
-  await page.locator('main a:has-text("Open the app")').click();
+  await page.locator('main a:has-text("Open the app")').first().click();
   await page.waitForSelector('#view-main');
+  // The demo: the sample in its own database (a session running, the demo strip), and the real app without either.
+  const realActs = await page.locator('.act').count();
+  await page.goto(new URL('../', URL_).href);
+  await page.locator('main a:has-text("Try the live demo")').first().click();
+  await page.waitForSelector('.welcome.demo');
+  await page.waitForSelector('.act.active');
+  await ss(page, `${tag}/13-demo`);
+  await page.locator('.welcome.demo a').click();
+  await page.waitForSelector('#view-main');
+  if (await page.locator('.welcome.demo').count()) errors.push('demo strip outside the demo');
+  if ((await page.locator('.act').count()) !== realActs) errors.push('the demo changed the real profile');
 }
 
 // ---------- docs: the repo's screenshot gallery and demo GIFs ----------
@@ -306,7 +327,7 @@ async function docs(browser) {
   await shot(page, '03-summary/1-day', true);
   await page.locator('.blocks.big .block:not(.idle)').nth(3).click();
   await grab(page, 'summary', 3);
-  await page.click('.period-kinds button:has-text("Week")');
+  await period(page, 'Week');
   await grab(page, 'summary', 5);
   await shot(page, '03-summary/2-week', true);
   await page.click('.group-by button:has-text("Focus")');
@@ -319,7 +340,7 @@ async function docs(browser) {
   await shot(page, '03-summary/3-week-grouped-by-focus', true);
   await top(page);
   await page.click('.group-by button:has-text("Activity")');
-  await page.click('.period-kinds button:has-text("Month")');
+  await period(page, 'Month');
   await grab(page, 'summary', 5);
   await shot(page, '03-summary/4-month', true);
   await page.click('.period-label');
@@ -359,7 +380,7 @@ async function docs(browser) {
   await page.click('.period-kinds button:has-text("Day")');
   await grab(page, 'phone', 5);
   await shot(page, 'phone/4-summary-day', true);
-  await page.click('.period-kinds button:has-text("Week")');
+  await period(page, 'Week');
   await grab(page, 'phone', 4);
   await top(page, 500);
   await grab(page, 'phone', 4);

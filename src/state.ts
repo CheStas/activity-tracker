@@ -5,6 +5,7 @@ import * as db from './db.ts';
 import { assign, switchTo, closeAt, totals, dayTotal, openSegment, uuid } from './timeline.ts';
 import { seed, seedRecords, newActivity, nameKey, withDefaults, normalizeActivity, DEFAULT_SETTINGS } from './seed.ts';
 import { profileExport, readImport, normalizeGroup } from './backup.ts';
+import { sampleExport } from './sample.ts';
 import { BUILTIN, pickThemePatch, upgradeTheme, type Theme, type ThemeFile } from './theme.ts';
 import type { Activity, CategoryOption, Day, Dimension, Group, Profile, Segment, Settings } from './types.ts';
 
@@ -61,6 +62,7 @@ const uid = uuid;
 const byOrder = <T extends { order: number }>(list: T[]) => list.sort((a, b) => a.order - b.order);
 
 export async function init() {
+  if (db.DEMO) await demoRun();
   state.themes = [...BUILTIN, ...(await db.getAll('themes')).map(upgradeTheme)];
   let profiles = byOrder(await db.getAll('profiles'));
   if (profiles.length === 0) profiles = await firstRun();
@@ -90,6 +92,15 @@ async function firstRun(): Promise<Profile[]> {
   await db.put('groups', ...records.groups);
   await db.put('activities', ...records.activities);
   return records.profiles;
+}
+
+/** app/?demo: a fresh demo database with one "Work" profile holding the sample, in the system's light or dark theme. */
+async function demoRun() {
+  await db.wipeDemo();
+  const id = uid();
+  const { settings, themes: _, ...data } = readImport(sampleExport(), id, uid);
+  const profile: Profile = { id, name: 'Work', order: 0, settings: withDefaults({ ...settings, themeMode: 'system', introDismissed: true }) };
+  await db.replaceProfile(id, { profile, ...data });
 }
 
 /** Load a profile and make it the open one. All profile state is assigned at once, after loading. */

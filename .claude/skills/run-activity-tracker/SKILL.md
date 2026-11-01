@@ -24,7 +24,8 @@ node .claude/skills/run-activity-tracker/driver.mjs smoke     # or: npm run smok
 ```
 Desktop (1440×900) and phone (390×844): first run, seed, tap, long-press popup, profile switcher, reset confirm
 (⋯ More on phone), Summary Day/Week/Month/Custom, Group by Focus, period picker, Settings → Categories, browser back,
-the hash route, then the site pages (landing, privacy, terms) and the landing's Open the app. ~18 s. Prints
+the hash route, then the site pages (landing, privacy, terms), the landing's Open the app and Try the live demo
+(`app/?demo`: the demo strip and a running session, then Start your own back in the untouched real profile). ~20 s. Prints
 `OK: no page errors` or `FAIL: …` (exit 1). Screenshots: `.claude/skills/run-activity-tracker/out/smoke/{desktop,phone}/`
 (git-ignored). **Look at them** with the Read tool; a passing run can still look wrong.
 
@@ -39,7 +40,7 @@ node .claude/skills/run-activity-tracker/driver.mjs do --phone "ss check/phone-f
 
 | Step | Does |
 | --- | --- |
-| `seed` | adds a "Home" profile, imports the sample into the open one (renamed "Work"): 7 activities (Break has a 1 h target) + 1 removed, dimensions Focus and Company, 3 weeks of weekdays, today ending now with a session running. Without it you get the first-run state ("New here?" strip, seed activities, nothing tracked). |
+| `seed` | adds a "Home" profile, imports the sample (`src/sample.ts`, also the app's `?demo` data) into the open one (renamed "Work"): 7 activities (Break has a 1 h target) + 1 removed, dimensions Focus and Company, 3 weeks of weekdays, today ending now with a session running. Without it you get the first-run state ("New here?" strip, seed activities, nothing tracked). |
 | `goto main\|summary\|settings[#id]` | in-app navigation; section ids: `profiles groups categories activities appearance theme colors main-screen day device backup about` |
 | `click <sel>` / `hold <sel>` | tap (first match) / 800 ms long-press (opens the activity popup) |
 | `press <key>` / `fill <sel>=<text>` | keyboard (Escape = back) / type into a field |
@@ -68,8 +69,9 @@ totals), `src/theme.ts` (slots, import), `src/backup.ts`. Change those test-firs
 node .claude/skills/run-activity-tracker/driver.mjs docs      # or: npm run screenshots
 ```
 Rewrites `docs/screenshots/01-main-screen … 04-settings`, `phone/` and `demo-{main,summary,phone}.gif` (~45 s). Run
-it in the evening or afternoon so "today" has ~6 h tracked. `docs/screenshots/README.md` captions are hand-written:
-update them if a screen changes meaning. Review a GIF by extracting its frames and reading a few:
+it in the evening or afternoon so "today" has ~6 h tracked. Early in a week or month Summary Week/Month step back to
+the previous period, so they always show full data. `docs/screenshots/README.md` captions and the landing page
+(`index.html`, which shows several of these files) are hand-written: update them if a screen changes meaning. Review a GIF by extracting its frames and reading a few:
 
 ```sh
 magick docs/screenshots/demo-main.gif -coalesce .claude/skills/run-activity-tracker/out/frame-%02d.png

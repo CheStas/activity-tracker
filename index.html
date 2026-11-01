@@ -3,20 +3,129 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Activity Tracker — a chess clock for your work day</title>
-  <meta name="description" content="Track your day with one tap per activity. Works offline, installs as an app, and keeps all data on your device.">
+  <title>Activity Tracker — know where your day went</title>
+  <meta name="description" content="One big button per activity: tap when you switch, see your day, week and month laid out. Free, no account, and your data never leaves your device.">
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/src/site/site.css">
 </head>
-<body>
+<body class="landing">
   <header class="site-header">
     <a class="brand" href="./"><img src="./favicon.svg" alt="">Activity Tracker</a>
     <a class="button" href="./app/">Open the app</a>
   </header>
   <main>
-    <h1>A chess clock for your work day</h1>
-    <p class="lead">One big button per activity. Tap to switch, tap again to stop. No account, and your data stays on your device.</p>
-    <a class="button primary" href="./app/">Open the app</a>
+    <section class="hero">
+      <h1>Know where your day actually went.</h1>
+      <p class="lead">One big button for each thing you do. Tap when you switch. By evening you see the meetings, the
+        reviews and the “quick questions” laid out hour by hour, without filling in a single timesheet. And it stays
+        yours: no account, and nothing you track ever leaves your device.</p>
+      <div class="actions">
+        <a class="button primary" href="./app/?demo">Try the live demo</a>
+        <a class="button" href="./app/">Open the app</a>
+      </div>
+      <p class="fine">The demo runs on three weeks of sample data in its own sandbox. Nothing you do there touches your
+        real tracker. Free.</p>
+      <figure class="shot hero-shot">
+        <img src="./docs/screenshots/demo-main.gif" width="960" height="600"
+          alt="Tapping between activities: the running tile lights up and today’s timeline grows along the bottom">
+      </figure>
+    </section>
+
+    <section class="feature">
+      <div class="copy">
+        <h2>Switching takes one tap</h2>
+        <p>It works like a chess clock. Tap Meeting and the clock moves to Meeting; tap Task and it moves on. Only one
+          thing runs at a time, so nothing gets counted twice and nothing slips through the cracks.</p>
+        <p>The buttons are big enough to hit without looking, on a laptop, a tablet by the desk or a touchscreen on the
+          wall.</p>
+      </div>
+      <figure class="shot">
+        <img src="./docs/screenshots/01-main-screen/4-graphite-theme.png" width="1440" height="900" loading="lazy"
+          alt="The main screen in the dark Graphite theme: one tile per activity with today’s time, the running one highlighted">
+      </figure>
+    </section>
+
+    <section class="feature flip">
+      <div class="copy">
+        <h2>Forgot to switch? Fix it in two taps</h2>
+        <p>Got pulled into a call and only remembered twenty minutes later? Hold the activity and say “active since
+          10:40”. The time is taken from whatever was running, so the day still adds up to the minute.</p>
+        <p>Every session of the day is right there to shorten, move or delete.</p>
+      </div>
+      <figure class="shot">
+        <img src="./docs/screenshots/02-popups/1-activity-long-press.png" width="1440" height="900" loading="lazy"
+          alt="Holding an activity opens today’s sessions and quick buttons to start it earlier">
+      </figure>
+    </section>
+
+    <section class="feature">
+      <div class="copy">
+        <h2>Private by design, not by promise</h2>
+        <p>Most trackers want an account, then upload every minute of your day to their cloud. This one has nowhere to
+          send it. Your sessions live in your browser’s own storage on this device, and that is the only copy.</p>
+        <p>No sign-up, no analytics, no ads. Track the dentist, the job interview and the long lunch without wondering
+          who else gets to see them.</p>
+      </div>
+      <ul class="vault" aria-label="What stays private">
+        <li><strong>No account</strong> No email, no password. Open it and start tapping.</li>
+        <li><strong>Stays on this device</strong> Nothing you track is ever uploaded anywhere.</li>
+        <li><strong>Nobody watching</strong> No analytics, no trackers, no ads.</li>
+        <li><strong>Yours to take</strong> Export a backup file any time and import it on another device.</li>
+      </ul>
+    </section>
+
+    <section class="feature flip">
+      <div class="copy">
+        <h2>See the week, not just today</h2>
+        <p>Day, week, month or any range you pick. Every day sits on the same clock, so late starts, long lunches and
+          meeting-heavy Tuesdays jump out at a glance.</p>
+        <p>Tag activities with your own categories, like deep work versus shallow or alone versus with people, and
+          the whole summary regroups around them.</p>
+      </div>
+      <figure class="shot">
+        <img src="./docs/screenshots/demo-summary.gif" width="960" height="600" loading="lazy"
+          alt="The summary moving from a day to a week grouped by focus, then to a month heatmap">
+      </figure>
+    </section>
+
+    <section class="feature phone">
+      <div class="copy">
+        <h2>Fits in your pocket too</h2>
+        <p>On a phone the buttons stack two to a row and the menus slide up from the bottom. Add it to your home
+          screen and it opens like any other app.</p>
+      </div>
+      <figure class="shot">
+        <img src="./docs/screenshots/demo-phone.gif" width="300" height="649" loading="lazy"
+          alt="The app on a phone: tiles, the activity sheet, the More menu and the summary">
+      </figure>
+    </section>
+
+    <section class="private">
+      <h2>Your day is nobody else’s business</h2>
+      <p>No account, no server, no analytics. Everything you track stays in this browser on this device. Export a backup
+        file whenever you like and import it anywhere else.</p>
+    </section>
+
+    <section class="extras" aria-label="Also included">
+      <ul>
+        <li><strong>Daily targets</strong> See at a glance whether you took that hour of breaks.</li>
+        <li><strong>Profiles</strong> Keep work and home apart, each with its own buttons and history.</li>
+        <li><strong>Three layouts</strong> Tiles, rows or circles, and buttons that grow with use if you like.</li>
+        <li><strong>Seven themes</strong> Light, dark or following your system, or import your own.</li>
+        <li><strong>Your own day</strong> Start the day at 4 am if you work late; it rolls over on its own.</li>
+        <li><strong>Full screen</strong> Leave it running on a spare screen as a wall clock for your work.</li>
+      </ul>
+    </section>
+
+    <section class="closing">
+      <h2>Give it one day.</h2>
+      <p class="lead">Track tomorrow from the first coffee to the last message and look at the timeline in the
+        evening. Most people are surprised.</p>
+      <div class="actions">
+        <a class="button primary" href="./app/">Open the app</a>
+        <a class="button" href="./app/?demo">Try the demo first</a>
+      </div>
+    </section>
   </main>
   <footer class="site-footer">
     <a href="./privacy/">Privacy</a>
