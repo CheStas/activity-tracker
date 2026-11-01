@@ -4,23 +4,75 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Privacy — Activity Tracker</title>
-  <meta name="description" content="Activity Tracker keeps all your data in your browser. Nothing is sent anywhere.">
+  <meta name="description" content="Everything you track stays in your browser. The site counts visits anonymously, without cookies, and you can turn that off.">
   <link rel="icon" href="../favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/src/site/site.css">
+  <script type="module" src="/src/site/site.ts"></script>
 </head>
-<body>
+<body class="legal">
   <header class="site-header">
     <a class="brand" href="../"><img src="../favicon.svg" alt="">Activity Tracker</a>
     <a class="button" href="../app/">Open the app</a>
   </header>
   <main>
     <h1>Privacy</h1>
-    <p>Activity Tracker has no account and no server. Everything you track is stored in your browser on this device and
-      never leaves it, unless you export a backup file yourself.</p>
+    <p class="updated">Last updated 1 November 2026</p>
+    <p class="lead">What you track never leaves your device. The site only counts, anonymously, how many people use it
+      and which features they use, so I know whether it is worth maintaining.</p>
+
+    <h2>What you track stays on your device</h2>
+    <p>Activity Tracker has no account and no database of yours anywhere. Your activities, sessions, groups, categories,
+      profiles and settings are stored in your browser’s own storage on this device. They are never uploaded, and they
+      are not part of the usage stats below. The only way they leave the browser is a backup file that you export
+      yourself.</p>
+
+    <h2>Anonymous usage stats</h2>
+    <p>The site and the app use <a href="https://umami.is">Umami Cloud</a>, a privacy-focused analytics service, to
+      count:</p>
+    <ul>
+      <li><strong>Page views:</strong> which page or app screen was opened (for example Summary or Settings), the page
+        that linked here, and the browser, operating system, device type, screen size, language and country.</li>
+      <li><strong>Feature use:</strong> named events such as “started tracking”, “exported a backup”, “changed the
+        layout” or “picked a theme”, with fixed values only (for example <em>layout: rows</em>).</li>
+      <li><strong>A daily snapshot:</strong> once a day, rough counts of how the app is set up, as ranges (for example
+        <em>4–6 activities</em>, <em>1–3 profiles</em>), the layout and theme mode, and whether it is installed as an
+        app.</li>
+    </ul>
+    <p>It never includes the names of your activities, groups, categories or profiles, your times or sessions, or
+      anything you type. Umami sets no cookies, does not store your IP address (it is used only to look up the country,
+      then discarded), and does not follow you across other websites. Visits are counted with an identifier made from a
+      hash that changes regularly, so they cannot be linked to you.</p>
+    <p>Stats are not sent from the demo, from the offline single-file version or from a copy running on your own
+      computer.</p>
+
+    <h2>Your choice</h2>
+    <p>You can turn the usage stats off, here or in the app under Settings → About. If your browser sends Do Not Track
+      or Global Privacy Control, they start off and stay off unless you turn them on. Blocking the script with an ad
+      blocker works too, and the app works exactly the same without it.</p>
+    <p>That said, please consider leaving them on. There is no personal data in them, and they are used for one thing
+      only: maintaining free software. They are the only way to know anyone uses Activity Tracker. If nobody does, it
+      gets no more updates or support, and it will be retired.</p>
+    <p id="stats-choice" class="choice">Turning usage stats on or off needs JavaScript. Without it, no stats are sent.</p>
+
+    <h2>Feedback</h2>
+    <p>When you send feedback from the app, your message is stored so it can be read, together with the email address,
+      if you give one, so you can get a reply, and, if you leave the box ticked, the app version and your browser. It
+      goes to this site’s host, <a href="https://www.cloudflare.com/privacypolicy/">Cloudflare</a>, and nowhere else.
+      Nothing from your tracker is attached. It is used only to answer you and improve the app, kept only as long as
+      needed for that, and deleted on request.</p>
+
+    <h2>Hosting</h2>
+    <p>The site is served by Cloudflare Pages. Like any web host, Cloudflare handles your IP address to deliver the
+      pages and protect them from abuse, under its own privacy policy. No other services are involved.</p>
+
+    <h2>Contact and changes</h2>
+    <p>For questions or a deletion request, use Send feedback in the app. If this policy changes, the new version is
+      posted here with a new date.</p>
   </main>
   <footer class="site-footer">
     <a href="../">Home</a>
     <a href="../terms/">Terms of use</a>
+    <a href="../similar/">Similar apps</a>
   </footer>
 </body>
 </html>

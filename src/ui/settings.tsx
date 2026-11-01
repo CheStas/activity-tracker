@@ -16,7 +16,7 @@ import { findTheme, lowContrastSlots, parseThemeFile, slotColor, themeFile, SLOT
 import { resolveWeekStart } from '../stats.ts';
 import { download, isoDay, fmtSwitch, slug } from './util.ts';
 import { Icon } from './icons.tsx';
-import { AboutLinks, LayoutSwitch, MAIN_TOGGLES, PrivacyNote, VERSION, currentTheme } from './about.tsx';
+import { AboutLinks, LayoutSwitch, MAIN_TOGGLES, PrivacyNote, UsageStats, VERSION, currentTheme } from './about.tsx';
 import { AppHeader, type Nav } from './header.tsx';
 import { confirmDialog, useAppState } from './hooks.tsx';
 
@@ -223,6 +223,7 @@ export function Settings({ nav, onBack, onDayEditor, section }: { nav: Nav; onBa
           <section id="about">
             <h2>About</h2>
             <div class="row"><AboutLinks variant="settings" /></div>
+            <UsageStats />
             <p class="muted num small">Activity Tracker · {VERSION}</p>
           </section>
         </div>

@@ -1,12 +1,15 @@
-// The "about" links (footer, welcome strip, Settings → About), the quick theme and main screen switches and the
-// privacy note. "What is it?" and "Similar apps" open the site's pages; the others are placeholders until those pages
-// exist.
+// The "about" links (footer, welcome strip, Settings → About), the quick theme and main screen switches, the privacy
+// note and the usage stats switch. "What is it?" and "Similar apps" open the site's pages (placeholders in the
+// single-file build); "Send feedback" opens the feedback form.
 import type { ComponentChildren } from 'preact';
 import { state, pickTheme, systemDark, setSetting } from '../state.ts';
 import { resolveTheme, type Theme } from '../theme.ts';
 import type { Layout, Settings } from '../types.ts';
 import { Icon, type IconName } from './icons.tsx';
 import { messageDialog } from './hooks.tsx';
+import { openFeedback } from './feedback.tsx';
+import { browserOptsOut, setStatsOn, statsAvailable, statsChoice, statsOn } from '../analytics.ts';
+import { useState } from 'preact/hooks';
 
 export const VERSION = `v${__APP_VERSION__}`;
 
@@ -19,7 +22,9 @@ const LINKS: { id: string; label: string; href?: string }[] = [
   { id: 'feedback', label: 'Send feedback' },
 ];
 
-const openPlaceholder = (link: (typeof LINKS)[number]) => messageDialog(link.label, 'This page is coming in a later version.');
+const openLink = (link: (typeof LINKS)[number]) => link.id === 'feedback'
+  ? openFeedback(VERSION)
+  : messageDialog(link.label, 'This page is on the website, which this offline file does not include.');
 
 /** The three links (a page link, or a button for a placeholder); `variant` picks the look of the place they are in. */
 export function AboutLinks({ variant }: { variant: 'strip' | 'footer' | 'settings' }) {
@@ -34,7 +39,7 @@ export function AboutLinks({ variant }: { variant: 'strip' | 'footer' | 'setting
         );
         return l.href
           ? <a key={l.id} class={`lnk lnk-${variant}`} href={l.href}>{content}</a>
-          : <button key={l.id} class={`lnk lnk-${variant}`} onClick={() => openPlaceholder(l)}>{content}</button>;
+          : <button key={l.id} class={`lnk lnk-${variant}`} onClick={() => openLink(l)}>{content}</button>;
       })}
     </>
   );
@@ -107,10 +112,39 @@ export function PrivacyNote({ children }: { children?: ComponentChildren }) {
   return (
     <p class="note">
       <strong>
-        Privacy first: all your data stays in this browser. No account and no internet connection needed. You are
+        Privacy first: everything you track stays in this browser. No account and no internet connection needed. You are
         responsible for your data, so export a backup regularly.
       </strong>
       {children}
     </p>
+  );
+}
+
+/** Settings → About: anonymous usage stats, on unless the visitor (or their browser's Do Not Track) said no. */
+export function UsageStats() {
+  const [on, setOn] = useState(statsOn);
+  if (!statsAvailable()) return <p class="muted small">This copy (the demo, the offline file or a local build) sends no usage stats.</p>;
+  const change = (v: boolean) => {
+    setStatsOn(v);
+    setOn(v);
+  };
+  return (
+    <>
+      <div class="toggles">
+        <label class="toggle">
+          <input type="checkbox" checked={on} onChange={(e) => change(e.currentTarget.checked)} />
+          <span class="toggle-text">
+            <span>Share anonymous usage stats</span>
+            <span class="muted small">Which screens and features get used, never what you track. No cookies, no account, nothing personal.</span>
+          </span>
+        </label>
+      </div>
+      <p class="muted small">
+        {!statsChoice() && browserOptsOut() && 'Your browser asks sites not to track, so this is off until you turn it on. '}
+        It is your choice, and you can turn it off. Please consider leaving it on: Activity Tracker is free, and these
+        counts are the only way to know anyone uses it. If nobody does, it gets no more updates and will be retired.{' '}
+        <a href="../privacy/">What is collected</a>
+      </p>
+    </>
   );
 }

@@ -7,6 +7,7 @@ import { seed, seedRecords, newActivity, nameKey, withDefaults, normalizeActivit
 import { profileExport, readImport, normalizeGroup } from './backup.ts';
 import { sampleExport } from './sample.ts';
 import { BUILTIN, pickThemePatch, upgradeTheme, type Theme, type ThemeFile } from './theme.ts';
+import { track, trackOnce } from './analytics.ts';
 import type { Activity, CategoryOption, Day, Dimension, Group, Profile, Segment, Settings } from './types.ts';
 
 const ACTIVE_PROFILE = 'activeProfileId'; // settings-store key; the only app-wide setting
@@ -208,6 +209,7 @@ function commit(day: Day, segments: Segment[]) {
 export function tap(activityId: string, now = Date.now()) {
   const open = activeSegment();
   const target = open?.activityId === activityId ? null : activityId;
+  trackOnce('tap');
   commit(state.day, switchTo(state.segments, target, now, state.profile.settings.minSwitchSec * 1000, opts(state.day)));
 }
 
@@ -546,6 +548,7 @@ export function addProfile(name: string) {
     id: uid(), name, order: Math.max(-1, ...state.profiles.map((p) => p.order)) + 1,
     settings: { ...state.profile.settings, introDismissed: true },
   };
+  track('profile-add');
   state.profiles.push(profile);
   queue(() => db.put('profiles', profile));
   emit('change');
@@ -570,8 +573,15 @@ export function removeProfile(id: string) {
 
 // ---------- settings / history / backup ----------
 
+/** Settings whose changes are counted (fixed values only; theme ids, Group by and the like are left out). */
+const TRACKED_SETTINGS: (keyof Settings)[] = [
+  'startFullscreen', 'keepAwake', 'themeMode', 'layout', 'resetHour', 'popularity', 'unusedStrip', 'showTimeline',
+  'showGroups', 'showFooter', 'autoExport', 'minSwitchSec', 'weekStart',
+];
+
 /** Settings belong to the open profile. */
 export function setSetting<K extends keyof Settings>(key: K, value: Settings[K]) {
+  if (TRACKED_SETTINGS.includes(key)) track('setting', { key, value: value as string | number | boolean });
   const p = state.profile;
   p.settings[key] = value;
   queue(() => db.put('profiles', p));
@@ -618,6 +628,7 @@ export async function profileStatus(id: string, now = Date.now()): Promise<Profi
 
 /** The open profile as a backup file (with the imported themes it uses). */
 export async function exportData() {
+  track('export');
   await writeChain;
   return profileExport(state.profile, await db.profileData(state.profile.id), state.themes);
 }
@@ -625,6 +636,7 @@ export async function exportData() {
 /** Replace the open profile's data and settings with a backup file's; other profiles are untouched. */
 export async function importData(raw: unknown) {
   const { settings, themes, ...data } = readImport(raw, state.profile.id, uid);
+  track('import');
   await writeChain;
   await rolling;
   if (themes.length) {
@@ -645,6 +657,7 @@ export const systemDark = () => matchMedia('(prefers-color-scheme: dark)').match
 export function pickTheme(id: string) {
   const p = state.profile;
   Object.assign(p.settings, pickThemePatch(p.settings, id, systemDark()));
+  track('theme', { theme: id.startsWith('custom-') ? 'custom' : id });
   queue(() => db.put('profiles', p));
   emit('change');
 }
@@ -652,6 +665,7 @@ export function pickTheme(id: string) {
 /** Install an imported theme (shared by all profiles) and return it. */
 export function addTheme(file: ThemeFile) {
   const theme: Theme = { ...file, id: `custom-${uid()}` };
+  track('theme-import');
   state.themes.push(theme);
   queue(() => db.put('themes', theme));
   emit('change');

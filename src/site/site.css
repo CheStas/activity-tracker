@@ -104,3 +104,12 @@ h1 { font-size: clamp(32px, 6vw, 52px); line-height: 1.1; letter-spacing: -0.02e
 .tool dt { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin-top: 12px; }
 .tool dd { margin: 4px 0 0; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* Privacy and terms: a plain document with section headings; the privacy page's usage stats switch. */
+.legal main h2 { font-size: 22px; line-height: 1.25; margin: 40px 0 10px; }
+.legal main p, .legal main li { color: var(--muted); }
+.legal main strong { color: var(--text); font-weight: 600; }
+.legal main li + li { margin-top: 6px; }
+.legal .updated { font-size: 14px; }
+.choice { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 16px 20px; border-radius: 14px; background: var(--chip); }
+.choice .button { min-height: 40px; cursor: pointer; font: inherit; font-weight: 600; }

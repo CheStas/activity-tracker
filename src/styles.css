@@ -319,6 +319,11 @@ button.icon.round.toggle[aria-pressed="true"], button.icon.round.current { backg
 .dialog-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 4px; }
 .dialog-actions button { flex: 1 1 140px; max-width: 220px; min-height: 48px; font-size: 15px; }
 .dialog-link { align-self: flex-start; min-height: 44px; font-size: 14px; }
+.feedback textarea { resize: vertical; min-height: 140px; }
+.feedback .toggle { padding: 0; }
+.feedback .toggle-text .small { overflow-wrap: anywhere; }
+.hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
+p.muted a { color: var(--accent); }
 .notice { margin: 0; display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 12px; background: var(--chip); font-size: 14px; line-height: 1.4; }
 .notice .dot { margin-top: 5px; width: 9px; height: 9px; }
 .notice strong { font-weight: 600; }

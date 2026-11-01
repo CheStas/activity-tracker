@@ -1,4 +1,4 @@
-# Activity Tracker — Specification
+| Terms of use: free, as is, may be retired; backups are the user's job; feedback may be used freely. || Privacy: tracked data stays in the browser; anonymous usage stats (§20) with an on/off switch; feedback; hosting. |# Activity Tracker — Specification
 
 The source requirements are in [`../custom-pomodoro-tracking.md`](../custom-pomodoro-tracking.md). This document is the
 authoritative spec: it covers those requirements plus every decision made since. Update it whenever a requirement changes.
@@ -163,14 +163,14 @@ theme (§16). Top to bottom:
 
 ### 6.1 Footer and welcome strip
 - **Footer** (below the fold, toggle *Show the footer*, **on** by default):
-  - **Privacy note** first, full width (a `chip` box, radius 12 px): "**Privacy first: all your data stays in this
+  - **Privacy note** first, full width (a `chip` box, radius 12 px): "**Privacy first: everything you track stays in this
     browser. No account and no internet connection needed. You are responsible for your data, so export a backup
     regularly.**" and, on the right, an "Export in Settings" link (opens Settings → Backup), styled like "More in
     Settings". The same note, without the link (the Export button is right below), heads Settings → Backup (§8).
   - Then three columns that wrap on narrow screens:
   1. "Activity Tracker", "A chess clock for your work day.", the version.
-  2. Links: What is it? (the site's landing page, §19), Similar apps (`/similar/`, §19), Send feedback. Until its page
-     exists Send feedback opens a placeholder popup; in the single-file build What is it? and Similar apps do too.
+  2. Links: What is it? (the site's landing page, §19), Similar apps (`/similar/`, §19), Send feedback (the feedback form, §18, §20). In the
+     single-file build What is it? and Similar apps open a popup saying the page is on the website.
   3. **Quick settings** (the same settings as in Settings, changed for the open profile immediately):
      - **Theme:** one round swatch per installed theme (its background and two activity colors), the current one
        ringed, "Theme · <name>" and a "More in Settings" link (opens Settings → Appearance). A tap applies the theme,
@@ -274,7 +274,9 @@ least 44 px tall, with a visible focus ring.
 - **Backup:** first the privacy note from the footer (§6.1, bold, in a `chip` box), then export the open profile to
   JSON, import JSON into the open profile (replaces that profile's data and settings, after a confirmation; other
   profiles are untouched)
-- **About:** What is it?, Similar apps, Send feedback (same targets as the footer), the version.
+- **About:** What is it?, Similar apps, Send feedback (same targets as the footer), the **Share anonymous usage
+  stats** switch with a note asking to keep it on (free software, the counts show whether anyone uses it, unused it is
+  retired; a link to the privacy page), the version. See §20.
 - Link to the **day editor** (also reachable from the activity popup, §7, and from each summary day, §9): a timeline of one day's segments,
   editing and deleting segments, adding a range (activity + from + to/now), and clearing the whole day. Its bar runs
   from the first activity's start to the last activity's end (or now while one is running); idle rows appear only for
@@ -522,7 +524,8 @@ Every popup uses one dialog component.
 - Confirms are Cancel (secondary, `chip`) + the action (primary = accent, or danger = slot 5 for destructive actions),
   right-aligned, 140–220 px wide, 48 px high; they stretch side by side on a phone. Messages have one OK.
 - Used for: profile switcher (§12), activity popup and delete session (§7), reset day and close app (§6.2), the
-  placeholder of Send feedback ("This page is coming in a later version." · OK), the
+  feedback form (message, optional email, "Include the app version and browser" ticked, showing exactly what is sent;
+  POST to `/api/feedback`; Thank you on success, the text kept with a notice on failure), the
   phone More menu (§6), and the confirmations in Settings and the day editor.
 
 ## 19. Website
@@ -539,7 +542,8 @@ Every popup uses one dialog component.
 | `/similar/` | `similar/index.html` | Similar apps: `docs/SIMILAR-TOOLS.md` rendered at build time (`scripts/similarTools.ts`), its table as one card per tool. Linked from the landing footer and the app's Similar apps. |
 
 - Every site page has the same header (logo + name → `/`, **Open the app**) and a footer with the other pages.
-- The pages are plain HTML with no script, so they load fast and can be indexed.
+- The pages are plain HTML, so they load fast and can be indexed. Their only script is `src/site/site.ts`: usage stats
+  (§20) and the privacy page's on/off switch.
 - **Landing page:** hand-written copy (not spec wording), in this order: hero (headline, a lead that ends on privacy:
   no account, nothing leaves the device; **Try the live demo** → `app/?demo`, **Open the app**, a line saying the demo
   is sandboxed, the main-screen GIF); five feature rows that alternate text and image (one-tap switching, backdating
@@ -559,3 +563,17 @@ Every popup uses one dialog component.
   to load.
 - `public/` is copied as is. The single-file build (`--mode single`) builds only the app and drops the favicon and
   manifest links.
+
+## 20. Usage stats and feedback
+- **Usage stats** (`src/analytics.ts`): Umami Cloud, loaded only when the build sets `VITE_UMAMI_ID` (optionally
+  `VITE_UMAMI_SRC`), never in the demo, the single-file build or on localhost. No cookies. Page views are sent by the
+  code (auto-track off) as path + hash route. Events, with fixed values only (never names, times or typed text):
+  `tap` (first tap per page load), `export`, `import`, `profile-add`, `theme` (built-in id or `custom`),
+  `theme-import`, `setting` (key + value, a fixed list of settings), `feedback`, and once a day per device `usage`
+  (activities, groups, categories and profiles as ranges, layout, theme mode, installed).
+- **Choice:** localStorage `usage-stats` = `on`/`off`, shared by the app (Settings → About) and the privacy page.
+  Without a choice it is on, unless the browser sends Do Not Track or Global Privacy Control. Off also sets Umami's own
+  `umami.disabled`.
+- **Feedback:** `functions/api/feedback.ts`, a Cloudflare Pages Function. It checks the origin, size, fields and a
+  honeypot, and stores the message in the KV namespace bound as `FEEDBACK` (503 until it is bound). No IP or country
+  is stored.

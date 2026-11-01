@@ -1,10 +1,11 @@
 // Entry point: view switching (hash routes), Esc/back, theme, full screen, quit, day rollover, wake lock, auto-export.
 import { render } from 'preact';
-import { useEffect, useLayoutEffect, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { parseHash, routeHash, type Route, type View } from './route.ts';
 import { init, subscribe, checkRollover, resetDay, state, notify, activeSegment, activityById, todayTotal } from './state.ts';
 import { cssVars, findTheme, resolveTheme } from './theme.ts';
 import { DEMO } from './db.ts';
+import { bucket, pageview, startStats, trackDaily } from './analytics.ts';
 import { Main } from './ui/main.tsx';
 import { Settings } from './ui/settings.tsx';
 import { Summary } from './ui/summary.tsx';
@@ -36,6 +37,12 @@ function App() {
   const { view } = route;
   // Main and Settings scroll the page; each view starts at its top.
   useLayoutEffect(() => window.scrollTo(0, 0), [view]);
+  // A page view per view (the first one is sent by startStats).
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) first.current = false;
+    else pageview();
+  }, [view]);
 
   // The browser's back/forward buttons and edits of the address.
   useEffect(() => {
@@ -112,10 +119,26 @@ function applyTheme() {
   } catch {}
 }
 
+/** The daily "how is it used" event: counts as ranges and fixed setting values, no names. */
+const usageSnapshot = () => {
+  const s = state.profile.settings;
+  return {
+    activities: bucket(state.activities.filter((a) => !a.archived).length),
+    groups: bucket(state.groups.length),
+    categories: bucket(state.categories.length),
+    profiles: bucket(state.profiles.length),
+    layout: s.layout,
+    themeMode: s.themeMode,
+    installed: matchMedia('(display-mode: standalone)').matches,
+  };
+};
+
 async function start() {
   if (!DEMO) navigator.storage?.persist?.();
   await init();
   applyTheme();
+  startStats();
+  trackDaily('usage', usageSnapshot);
   // Follow system: switch with the OS setting (notify re-renders what shows the current theme).
   darkQuery.addEventListener('change', notify);
   subscribe((ev, payload) => {

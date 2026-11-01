@@ -61,6 +61,15 @@ is a demo on sample data in its own throwaway database. Each browser on each dev
 own data; nothing syncs, so use export/import to move data. Prefer HTTPS: on plain HTTP the screen isn't kept awake
 and storage may be evicted.
 
+### Hosting on Cloudflare Pages (usage stats and feedback)
+Build command `npm run build`, output `dist`. The `functions/` folder becomes the site's `/api/feedback`.
+- **Usage stats:** create a website in [Umami Cloud](https://cloud.umami.is) and set `VITE_UMAMI_ID` (its website id)
+  as a build variable; set `VITE_UMAMI_SRC` too if the account is in another region. Without it no stats are sent.
+- **Feedback:** create a KV namespace and bind it as `FEEDBACK` (Settings → Bindings). Until then the form answers
+  "could not be sent". Read messages in the dashboard or with `wrangler kv key list --binding FEEDBACK`.
+
+See `docs/SPEC.md` §20 for what is collected; `privacy/index.html` says the same in plain words.
+
 ## Use
 - **Tap** to switch the activity; **tap the active row** to stop all.
 - **Long-press** a row to see its sessions and to set "active since…" or "stop all since…"; "Edit sessions…" opens
