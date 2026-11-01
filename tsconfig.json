@@ -16,5 +16,5 @@
     "noUnusedParameters": true,
     "resolveJsonModule": true
   },
-  "include": ["src", "tests", "config", "vite.config.ts"]
+  "include": ["src", "tests", "config", "scripts", "vite.config.ts"]
 }

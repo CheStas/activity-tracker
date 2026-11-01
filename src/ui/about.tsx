@@ -1,5 +1,6 @@
 // The "about" links (footer, welcome strip, Settings → About), the quick theme and main screen switches and the
-// privacy note. "What is it?" opens the site's landing page; the others are placeholders until those pages exist.
+// privacy note. "What is it?" and "Similar apps" open the site's pages; the others are placeholders until those pages
+// exist.
 import type { ComponentChildren } from 'preact';
 import { state, pickTheme, systemDark, setSetting } from '../state.ts';
 import { resolveTheme, type Theme } from '../theme.ts';
@@ -14,7 +15,7 @@ const SITE = import.meta.env.MODE === 'single' ? null : '../';
 
 const LINKS: { id: string; label: string; href?: string }[] = [
   { id: 'what', label: 'What is it?', href: SITE ?? undefined },
-  { id: 'compare', label: 'Similar apps' },
+  { id: 'compare', label: 'Similar apps', href: SITE ? `${SITE}similar/` : undefined },
   { id: 'feedback', label: 'Send feedback' },
 ];
 

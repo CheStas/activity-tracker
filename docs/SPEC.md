@@ -169,8 +169,8 @@ theme (§16). Top to bottom:
     Settings". The same note, without the link (the Export button is right below), heads Settings → Backup (§8).
   - Then three columns that wrap on narrow screens:
   1. "Activity Tracker", "A chess clock for your work day.", the version.
-  2. Links: What is it? (the site's landing page, §19), Similar apps, Send feedback. Until the other pages exist they
-     open a placeholder popup; in the single-file build What is it? does too.
+  2. Links: What is it? (the site's landing page, §19), Similar apps (`/similar/`, §19), Send feedback. Until its page
+     exists Send feedback opens a placeholder popup; in the single-file build What is it? and Similar apps do too.
   3. **Quick settings** (the same settings as in Settings, changed for the open profile immediately):
      - **Theme:** one round swatch per installed theme (its background and two activity colors), the current one
        ringed, "Theme · <name>" and a "More in Settings" link (opens Settings → Appearance). A tap applies the theme,
@@ -522,7 +522,7 @@ Every popup uses one dialog component.
 - Confirms are Cancel (secondary, `chip`) + the action (primary = accent, or danger = slot 5 for destructive actions),
   right-aligned, 140–220 px wide, 48 px high; they stretch side by side on a phone. Messages have one OK.
 - Used for: profile switcher (§12), activity popup and delete session (§7), reset day and close app (§6.2), the
-  placeholder of Similar apps / Send feedback ("This page is coming in a later version." · OK), the
+  placeholder of Send feedback ("This page is coming in a later version." · OK), the
   phone More menu (§6), and the confirmations in Settings and the day editor.
 
 ## 19. Website
@@ -536,6 +536,7 @@ Every popup uses one dialog component.
 | `/app/?demo` | `app/index.html` | The demo: the app on sample data in a throwaway database (below). |
 | `/privacy/` | `privacy/index.html` | Privacy: no account, no server, data stays in the browser. |
 | `/terms/` | `terms/index.html` | Terms of use: free, as is, backups are the user's job. |
+| `/similar/` | `similar/index.html` | Similar apps: `docs/SIMILAR-TOOLS.md` rendered at build time (`scripts/similarTools.ts`), its table as one card per tool. Linked from the landing footer and the app's Similar apps. |
 
 - Every site page has the same header (logo + name → `/`, **Open the app**) and a footer with the other pages.
 - The pages are plain HTML with no script, so they load fast and can be indexed.
