@@ -1,0 +1,29 @@
+/* The static site pages (landing, privacy, terms): the app's tokens and fonts, a simple centered column. */
+@import '../tokens.css';
+@import '@fontsource/geist-sans/latin-400.css';
+@import '@fontsource/geist-sans/latin-600.css';
+
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text); }
+body { min-height: 100vh; display: flex; flex-direction: column; line-height: 1.55; font-size: 17px; }
+a { color: var(--accent); }
+
+.site-header, main, .site-footer { width: 100%; max-width: 760px; margin: 0 auto; padding: 0 16px; }
+.site-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 72px; }
+.brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 600; color: var(--text); text-decoration: none; }
+.brand img { width: 28px; height: 28px; }
+main { flex: 1; padding-block: 32px 64px; }
+h1 { font-size: clamp(32px, 6vw, 52px); line-height: 1.1; letter-spacing: -0.02em; margin: 0 0 16px; }
+.lead { font-size: 20px; color: var(--muted); margin: 0 0 32px; }
+
+.button {
+  display: inline-flex; align-items: center; justify-content: center; min-height: 48px; padding: 0 22px;
+  border-radius: 12px; font-weight: 600; text-decoration: none; border: 1px solid var(--line);
+  background: var(--surface); color: var(--text);
+}
+.button.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.button:hover { filter: brightness(1.05); }
+.button:focus-visible, a:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+.site-footer { display: flex; flex-wrap: wrap; gap: 8px 20px; padding-block: 24px; border-top: 1px solid var(--line); font-size: 14px; }
+.site-footer a { color: var(--muted); }

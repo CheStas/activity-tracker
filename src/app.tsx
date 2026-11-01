@@ -1,6 +1,7 @@
-// Entry point: view switching, Esc/back, theme, full screen, quit, day rollover, wake lock, auto-export.
+// Entry point: view switching (hash routes), Esc/back, theme, full screen, quit, day rollover, wake lock, auto-export.
 import { render } from 'preact';
 import { useEffect, useLayoutEffect, useState } from 'preact/hooks';
+import { parseHash, routeHash, type Route, type View } from './route.ts';
 import { init, subscribe, checkRollover, resetDay, state, notify, activeSegment, activityById, todayTotal } from './state.ts';
 import { cssVars, findTheme, resolveTheme } from './theme.ts';
 import { Main } from './ui/main.tsx';
@@ -20,53 +21,70 @@ import '@fontsource/geist-mono/latin-500.css';
 import '@fontsource/geist-mono/latin-600.css';
 import './styles.css';
 
-type View = 'main' | 'settings' | 'summary' | 'day-editor';
+/** The history entry's state: the view it was opened from (set by `go`). */
+type Entry = { from?: View } | null;
+const entry = (): Entry => history.state;
+
 // Esc / back goes up this hierarchy; main has no parent, so there are no loops. The day editor goes back to where it
-// was opened from: Settings, or Main (the activity popup's "Edit sessions").
-const parent: Partial<Record<View, View>> = { settings: 'main', summary: 'main' };
+// was opened from: Settings, Summary, or Main (the activity popup's "Edit sessions"); Settings after a reload.
+const parentOf = (view: View): View | undefined =>
+  view === 'main' ? undefined : view === 'day-editor' ? entry()?.from ?? 'settings' : 'main';
 
 function App() {
-  const [view, setView] = useState<View>('main');
-  const [section, setSection] = useState<string>();
-  const [editorFrom, setEditorFrom] = useState<View>('settings');
+  const [route, setRoute] = useState<Route>(() => parseHash(location.hash));
+  const { view } = route;
   // Main and Settings scroll the page; each view starts at its top.
   useLayoutEffect(() => window.scrollTo(0, 0), [view]);
-  parent['day-editor'] = editorFrom;
-  const toEditor = (from: View) => {
-    setEditorFrom(from);
-    setView('day-editor');
+
+  // The browser's back/forward buttons and edits of the address.
+  useEffect(() => {
+    const onPop = () => setRoute(parseHash(location.hash));
+    addEventListener('popstate', onPop);
+    return () => removeEventListener('popstate', onPop);
+  }, []);
+
+  /** Open a route: a new history entry, or the same one when the view stays (Settings → another section). */
+  const go = (to: Route) => {
+    if (to.view === view) history.replaceState(entry(), '', routeHash(to));
+    else history.pushState({ from: view } satisfies Entry, '', routeHash(to));
+    setRoute(to);
+  };
+  /** Back = up the hierarchy. When this entry was opened from the parent, that is a browser back (no extra entry). */
+  const up = () => {
+    const to = parentOf(view);
+    if (!to) return;
+    if (entry()?.from === to) return history.back();
+    history.replaceState(null, '', routeHash({ view: to }));
+    setRoute({ view: to });
   };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
       e.preventDefault();
-      if (!closeTopModal()) setView((v) => parent[v] ?? v);
+      if (!closeTopModal()) up();
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, []);
+  }, [view]);
 
-  const toMain = () => setView('main');
-  const toSettings = (to?: string) => {
-    setSection(to);
-    setView('settings');
-  };
+  const toSettings = (section?: string) => go({ view: 'settings', section });
+  const toEditor = () => go({ view: 'day-editor' });
   // The header is the same on every page, so are its buttons.
   const nav: Nav = {
     onProfiles: () => openProfilePicker(toSettings),
     onSettings: toSettings,
-    onSummary: () => setView('summary'),
+    onSummary: () => go({ view: 'summary' }),
     onReset: confirmReset,
     onFullscreen: toggleFullscreen,
     onQuit: quit,
   };
   return (
     <>
-      {view === 'main' && <Main nav={nav} onDayEditor={() => toEditor('main')} />}
-      {view === 'settings' && <Settings nav={nav} section={section} onBack={toMain} onDayEditor={() => toEditor('settings')} />}
-      {view === 'summary' && <Summary nav={nav} onBack={toMain} onDayEditor={() => toEditor('summary')} />}
-      {view === 'day-editor' && <DayEditor nav={nav} onBack={() => setView(editorFrom)} />}
+      {view === 'main' && <Main nav={nav} onDayEditor={toEditor} />}
+      {view === 'settings' && <Settings nav={nav} section={route.section} onBack={up} onDayEditor={toEditor} />}
+      {view === 'summary' && <Summary nav={nav} onBack={up} onDayEditor={toEditor} />}
+      {view === 'day-editor' && <DayEditor nav={nav} onBack={up} />}
       <ScrollTop />
       <ModalHost />
     </>

@@ -29,7 +29,7 @@ scripts/start.sh --kiosk     # locked full screen, no window controls
 scripts/start.sh --browser   # normal browser window with tabs
 ```
 `start.sh` is a bash script: run it directly (or with `bash`), not with `node`. It rebuilds `dist/` when the sources
-changed, then serves it on `http://localhost:8765`. The npm shortcuts do the same:
+changed, then serves it on `http://localhost:8765` and opens the app at `/app/`. The npm shortcuts do the same:
 `npm start`, `npm run start:browser`, `npm run start:kiosk`.
 
 Closing the window (or the in-app ⏻ button) also stops the script and its local server.
@@ -55,7 +55,8 @@ This file does not keep the screen on, and its data is **separate** from `script
 origin). Use export/import to move data between them. Rebuild it after code changes.
 
 ### Optional: any static web server
-Run `npm run build` and copy `dist/` to any static host (a subpath works too). Each browser on each device keeps its
+Run `npm run build` and copy `dist/` to any static host (a subpath works too). The root is the landing page (with
+privacy and terms pages next to it); the app is at `app/` and can be installed from there as an app. Each browser on each device keeps its
 own data; nothing syncs, so use export/import to move data. Prefer HTTPS: on plain HTTP the screen isn't kept awake
 and storage may be evicted.
 

@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "vite",
     "build": "npm run typecheck && vite build",
-    "build:single": "vite build --mode single && mv dist-single/index.html dist-single/activity-tracker.html",
+    "build:single": "vite build --mode single && mv dist-single/app/index.html dist-single/activity-tracker.html && rmdir dist-single/app",
     "preview": "vite preview",
     "typecheck": "tsc",
     "test": "vitest run",

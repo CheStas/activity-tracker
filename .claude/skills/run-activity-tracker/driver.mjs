@@ -4,7 +4,7 @@
 //   smoke             walk every screen and popup, screenshot each, exit 1 on page errors
 //   do <step>...      run steps in one session (see STEPS below), e.g. do seed "goto summary" "ss summary full"
 //   docs              regenerate docs/screenshots (PNGs, gallery shots and the demo GIFs; GIFs need ImageMagick)
-// Options: --phone (390×844, default 1440×900), --url <url> (default http://localhost:5199/), --out <dir>.
+// Options: --phone (390×844, default 1440×900), --url <url> (default http://localhost:5199/app/), --out <dir>.
 // Screenshots land in .claude/skills/run-activity-tracker/out/ (git-ignored) unless --out is given.
 import { chromium } from 'playwright-core';
 import { spawn, execFileSync } from 'node:child_process';
@@ -21,7 +21,7 @@ const flag = (name) => args.includes(name);
 const option = (name, fallback) => (args.includes(name) ? args[args.indexOf(name) + 1] : fallback);
 const positional = args.filter((a, i) => !a.startsWith('--') && !['--url', '--out'].includes(args[i - 1]));
 const [command = 'smoke', ...steps] = positional;
-const URL_ = option('--url', 'http://localhost:5199/');
+const URL_ = option('--url', 'http://localhost:5199/app/');
 const OUT = option('--out', join(HERE, 'out'));
 const PHONE = { width: 390, height: 844 };
 const DESKTOP = { width: 1440, height: 900 };
@@ -209,9 +209,25 @@ async function smoke(browser, viewport, tag) {
   await page.click('.pill:has-text("Last 30 days")');
   await ss(page, `${tag}/08-picker`);
   await page.click('.picker button:has-text("Apply")');
+  if ((await page.evaluate(() => location.hash)) !== '#/summary') errors.push('Summary is not at #/summary');
   await goto(page, 'settings#categories');
   await ss(page, `${tag}/09-settings-categories`);
+  await page.goBack(); // browser back: Settings → Main (goto went up with Esc first)
+  await page.waitForSelector('#view-main');
+  await site(page, tag);
   await ctx.close();
+}
+
+/** The static pages next to the app: each one loads, and the landing page's button opens the app. */
+async function site(page, tag) {
+  for (const [path, name] of [['../', '10-landing'], ['../privacy/', '11-privacy'], ['../terms/', '12-terms']]) {
+    const res = await page.goto(new URL(path, URL_).href);
+    if (!res?.ok()) errors.push(`${path}: HTTP ${res?.status()}`);
+    await ss(page, `${tag}/${name}`);
+  }
+  await page.goto(new URL('../', URL_).href);
+  await page.locator('main a:has-text("Open the app")').click();
+  await page.waitForSelector('#view-main');
 }
 
 // ---------- docs: the repo's screenshot gallery and demo GIFs ----------

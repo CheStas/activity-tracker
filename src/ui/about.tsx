@@ -1,5 +1,5 @@
 // The "about" links (footer, welcome strip, Settings → About), the quick theme and main screen switches and the
-// privacy note. The link targets are placeholders until those pages exist.
+// privacy note. "What is it?" opens the site's landing page; the others are placeholders until those pages exist.
 import type { ComponentChildren } from 'preact';
 import { state, pickTheme, systemDark, setSetting } from '../state.ts';
 import { resolveTheme, type Theme } from '../theme.ts';
@@ -9,24 +9,32 @@ import { messageDialog } from './hooks.tsx';
 
 export const VERSION = `v${__APP_VERSION__}`;
 
-const LINKS = [
-  { id: 'what', label: 'What is it?' },
+// The site pages sit next to the app (app/ → ../). The single-file build has no site around it.
+const SITE = import.meta.env.MODE === 'single' ? null : '../';
+
+const LINKS: { id: string; label: string; href?: string }[] = [
+  { id: 'what', label: 'What is it?', href: SITE ?? undefined },
   { id: 'compare', label: 'Similar apps' },
   { id: 'feedback', label: 'Send feedback' },
 ];
 
 const openPlaceholder = (link: (typeof LINKS)[number]) => messageDialog(link.label, 'This page is coming in a later version.');
 
-/** The three links as buttons; `variant` picks the look of the place they are in. */
+/** The three links (a page link, or a button for a placeholder); `variant` picks the look of the place they are in. */
 export function AboutLinks({ variant }: { variant: 'strip' | 'footer' | 'settings' }) {
   return (
     <>
-      {LINKS.map((l) => (
-        <button key={l.id} class={`lnk lnk-${variant}`} onClick={() => openPlaceholder(l)}>
-          {variant === 'footer' && l.id === 'feedback' && <Icon name="feedback" />}
-          {l.label}
-        </button>
-      ))}
+      {LINKS.map((l) => {
+        const content = (
+          <>
+            {variant === 'footer' && l.id === 'feedback' && <Icon name="feedback" />}
+            {l.label}
+          </>
+        );
+        return l.href
+          ? <a key={l.id} class={`lnk lnk-${variant}`} href={l.href}>{content}</a>
+          : <button key={l.id} class={`lnk lnk-${variant}`} onClick={() => openPlaceholder(l)}>{content}</button>;
+      })}
     </>
   );
 }

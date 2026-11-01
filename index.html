@@ -2,19 +2,25 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-  <title>Activity Tracker</title>
-  <script>
-    // The last theme (mirrored by app.tsx) before the first paint, so the page does not flash while IndexedDB loads.
-    try {
-      var themes = JSON.parse(localStorage.getItem('theme-vars'));
-      var vars = themes && (themes.fixed || (matchMedia('(prefers-color-scheme: dark)').matches ? themes.dark : themes.light));
-      for (var k in vars) document.documentElement.style.setProperty(k, vars[k]);
-    } catch (e) {}
-  </script>
-  <script type="module" src="/src/app.tsx"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Activity Tracker — a chess clock for your work day</title>
+  <meta name="description" content="Track your day with one tap per activity. Works offline, installs as an app, and keeps all data on your device.">
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/src/site/site.css">
 </head>
 <body>
-  <div id="app"></div>
+  <header class="site-header">
+    <a class="brand" href="./"><img src="./favicon.svg" alt="">Activity Tracker</a>
+    <a class="button" href="./app/">Open the app</a>
+  </header>
+  <main>
+    <h1>A chess clock for your work day</h1>
+    <p class="lead">One big button per activity. Tap to switch, tap again to stop. No account, and your data stays on your device.</p>
+    <a class="button primary" href="./app/">Open the app</a>
+  </main>
+  <footer class="site-footer">
+    <a href="./privacy/">Privacy</a>
+    <a href="./terms/">Terms of use</a>
+  </footer>
 </body>
 </html>

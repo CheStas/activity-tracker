@@ -15,7 +15,8 @@ A full-screen web app for a Linux PC/laptop with a touchscreen. It works like a 
 |---|---|
 | Stack | Preact + TypeScript, built with Vite (`npm run build` → `dist/`). Pure timeline logic lives in `src/timeline.ts` (no DOM, no storage), tested with Vitest. Development: `npm run dev` (Vite dev server, a different origin, so its data is separate). |
 | Storage | IndexedDB in the browser profile; `navigator.storage.persist()` requested |
-| Serving | `python3 -m http.server 8765 --bind 127.0.0.1 --directory dist` (localhost is a secure context, needed for Wake Lock). The origin `http://localhost:8765` is unchanged, so data from earlier versions is kept. |
+| Serving | `python3 -m http.server 8765 --bind 127.0.0.1 --directory dist` (localhost is a secure context, needed for Wake Lock); the app is at `http://localhost:8765/app/`. The origin `http://localhost:8765` is unchanged (IndexedDB is per origin, not per path), so data from earlier versions is kept. |
+| Site | `dist/` is a small static site (§19): the landing page at the root, the app under `app/`, plain pages next to it. |
 | Main run | `scripts/start.sh`: rebuilds `dist/` when sources are newer (needs `npm`; with no `npm` it serves the existing build), then opens Chromium with a dedicated profile. Modes: **app window** (default; title bar, resizable, closable), `--kiosk` (locked full screen), `--browser` (normal window with tabs). All modes share the same data. The script and its server exit when the window closes. |
 | Static hosting | The built `dist/` folder works from any static web server, including a subpath, because Vite builds with relative paths (`base: './'`). Data is per browser, per device, per site address (IndexedDB); there is no sync. Use **HTTPS** for screen keep-awake and persistent storage. Plain HTTP works too: IDs fall back to `crypto.getRandomValues` because `crypto.randomUUID` needs a secure context. Safari may evict data after about 7 days without visits unless the site is added to the home screen. |
 | Plain HTML (optional) | `npm run build:single` builds `dist-single/activity-tracker.html` (all JS and CSS inlined via `vite-plugin-singlefile`), a single file to open by double-click (browsers block module files on `file://`). No screen keep-awake. **Its data is separate** from the localhost version (a different origin); move data between them with export/import. Rebuild after code changes. |
@@ -168,7 +169,8 @@ theme (§16). Top to bottom:
     Settings". The same note, without the link (the Export button is right below), heads Settings → Backup (§8).
   - Then three columns that wrap on narrow screens:
   1. "Activity Tracker", "A chess clock for your work day.", the version.
-  2. Links: What is it?, Similar apps, Send feedback. Until those pages exist they open a placeholder popup.
+  2. Links: What is it? (the site's landing page, §19), Similar apps, Send feedback. Until the other pages exist they
+     open a placeholder popup; in the single-file build What is it? does too.
   3. **Quick settings** (the same settings as in Settings, changed for the open profile immediately):
      - **Theme:** one round swatch per installed theme (its background and two activity colors), the current one
        ringed, "Theme · <name>" and a "More in Settings" link (opens Settings → Appearance). A tap applies the theme,
@@ -190,6 +192,12 @@ theme (§16). Top to bottom:
 ### 6.2 Navigation, full screen, closing
 - **Esc = back**, following a fixed hierarchy with no loops: open popup → closes it; Day editor → where it was opened
   from (Settings, Summary, or Main via the activity popup); Settings and Summary → Main. On Main, Esc does nothing.
+- **Hash routes:** each view has an address: `#/` (Main), `#/summary`, `#/settings`, `#/settings/<section id>`
+  (scrolls to that section), `#/day-editor`. Opening a view adds a history entry, so the browser's back button works
+  too; opening Settings from Settings (another section) replaces the entry. Esc and the back button go up the
+  hierarchy above: when the view was opened from its parent that is a browser back, otherwise (a deep link, or the
+  header's Settings from the day editor) the entry is replaced by the parent, so Esc never leaves the app. A reload
+  keeps the view; the day editor then goes back to Settings. Unknown addresses open Main.
 - **Full screen is optional.** The ⛶ button toggles document full screen. The "Start in full screen" setting enters it
   on the first tap, because browsers require a user gesture. While in full screen, Esc is captured (Keyboard Lock) so
   it keeps meaning "back"; **hold Esc** (about 2 s) to leave full screen.
@@ -514,5 +522,26 @@ Every popup uses one dialog component.
 - Confirms are Cancel (secondary, `chip`) + the action (primary = accent, or danger = slot 5 for destructive actions),
   right-aligned, 140–220 px wide, 48 px high; they stretch side by side on a phone. Messages have one OK.
 - Used for: profile switcher (§12), activity popup and delete session (§7), reset day and close app (§6.2), the
-  placeholder of What is it? / Similar apps / Send feedback ("This page is coming in a later version." · OK), the
+  placeholder of Similar apps / Send feedback ("This page is coming in a later version." · OK), the
   phone More menu (§6), and the confirmations in Settings and the day editor.
+
+## 19. Website
+`npm run build` produces a static site; every page is a Vite input (`vite.config.ts`), styled by
+`src/site/site.css` with the app's tokens and font (`src/tokens.css`):
+
+| Path | Source | Content |
+|---|---|---|
+| `/` | `index.html` | Landing page: what the app does, **Open the app** (header and main button). No redirect for returning users. |
+| `/app/` | `app/index.html` | The app (the PWA). |
+| `/privacy/` | `privacy/index.html` | Privacy: no account, no server, data stays in the browser. |
+| `/terms/` | `terms/index.html` | Terms of use: free, as is, backups are the user's job. |
+
+- Every site page has the same header (logo + name → `/`, **Open the app**) and a footer with the other pages.
+- The pages are plain HTML with no script, so they load fast and can be indexed. Their content is short for now and
+  grows later (demo, screenshots, similar tools from `docs/SIMILAR-TOOLS.md`).
+- **PWA:** `public/app/manifest.webmanifest` with `scope` and `start_url` = `app/`, so the installed app opens straight
+  in the app and never shows the site pages. Icons: `public/favicon.svg` (also the site's favicon) and PNGs rendered
+  from it (`public/app/icon-192.png`, `icon-512.png`). There is no service worker yet, so the app needs the network
+  to load.
+- `public/` is copied as is. The single-file build (`--mode single`) builds only the app and drops the favicon and
+  manifest links.

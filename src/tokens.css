@@ -1,0 +1,37 @@
+/* Design tokens, shared by the app (styles.css) and the site pages (site/site.css). In the app every color comes from
+   the theme's custom properties (src/theme.ts sets them on <html>). The values below are Paper, and Graphite in a dark
+   OS: the site pages' colors, and the app's for the moment before the first theme is applied. */
+:root {
+  --bg: #F5F5F2; --surface: #FFFFFF; --chip: #EFEFEB; --line: #E3E3DE; --track: #ECECE7;
+  --text: #1B1B1A; --muted: #62625D; --on-accent: #FFFFFF;
+  --slot-1: #2F5FCC; --slot-2: #17804F; --slot-3: #B5561A; --slot-4: #8A47C4;
+  --slot-5: #C03636; --slot-6: #1F7799; --slot-7: #8C6A0A; --slot-8: #4D4D49;
+  --slot-9: #B8336A; --slot-10: #0F7A6E; --slot-11: #4F7A12; --slot-12: #7A4E2D;
+  --slot-13: #4338CA; --slot-14: #6B6A1F; --slot-15: #7D1F3A; --slot-16: #5B6472;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111214; --surface: #18191C; --chip: #24262A; --line: #2A2C30; --track: #24262A;
+    --text: #EDEDEB; --muted: #A1A4AA; --on-accent: #111214;
+    --slot-1: #82A8FF; --slot-2: #5CD39A; --slot-3: #FFA36B; --slot-4: #C89CFF;
+    --slot-5: #FF8585; --slot-6: #6DCFF0; --slot-7: #F0C850; --slot-8: #C4C6CA;
+    --slot-9: #FF8AC0; --slot-10: #45D0BE; --slot-11: #B6E36B; --slot-12: #D9A57C;
+    --slot-13: #A7A9FF; --slot-14: #C9C46E; --slot-15: #C98A95; --slot-16: #9AA3B2;
+    color-scheme: dark;
+  }
+}
+:root {
+  /* Derived from the tokens: slot 1 is the accent, slot 5 the danger color; "Not set" is muted at 35%. */
+  --accent: var(--slot-1);
+  --danger: var(--slot-5);
+  --notset: color-mix(in srgb, var(--muted) 35%, transparent);
+  --line-2: color-mix(in srgb, var(--text) 22%, var(--bg));
+  --focus: var(--slot-1);
+  --shadow: color-mix(in srgb, var(--text) 8%, transparent);
+  --radius: 16px;
+  --gap: 12px;
+  --pad-x: 28px;
+  --mono: 'Geist Mono', ui-monospace, monospace;
+  font-family: 'Geist Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}

@@ -20,7 +20,7 @@ esac
 
 APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 PORT="${PORT:-8765}"
-URL="http://localhost:${PORT}"
+URL="http://localhost:${PORT}/app/" # the site's root is the landing page; the app lives under app/
 PROFILE="${PROFILE:-$HOME/.local/share/activity-tracker/chromium}"
 
 BROWSER="${BROWSER:-$(command -v chromium-browser || command -v chromium || command -v google-chrome || true)}"
@@ -28,10 +28,11 @@ BROWSER="${BROWSER:-$(command -v chromium-browser || command -v chromium || comm
 
 # Build dist/ when it is missing or older than the sources. Without npm, serve whatever build exists.
 DIST="$APP_DIR/dist"
-if [ ! -f "$DIST/index.html" ] || [ -n "$(find "$APP_DIR/src" "$APP_DIR/config" "$APP_DIR/index.html" "$APP_DIR/package.json" "$APP_DIR/vite.config.ts" -newer "$DIST/index.html" -print -quit)" ]; then
+BUILT="$DIST/app/index.html"
+if [ ! -f "$BUILT" ] || [ -n "$(find "$APP_DIR/src" "$APP_DIR/config" "$APP_DIR/public" "$APP_DIR/app" "$APP_DIR/index.html" "$APP_DIR/privacy" "$APP_DIR/terms" "$APP_DIR/package.json" "$APP_DIR/vite.config.ts" -newer "$BUILT" -print -quit)" ]; then
   if command -v npm >/dev/null; then
     (cd "$APP_DIR" && { [ -d node_modules ] || npm ci; } && npm run build)
-  elif [ -f "$DIST/index.html" ]; then
+  elif [ -f "$BUILT" ]; then
     echo "npm not found; serving the existing (outdated) build" >&2
   else
     echo "No build in $DIST and npm not found; run 'npm install && npm run build' first" >&2

@@ -23,7 +23,8 @@ Import, and then walks the app. All paths below are relative to the project root
 node .claude/skills/run-activity-tracker/driver.mjs smoke     # or: npm run smoke
 ```
 Desktop (1440×900) and phone (390×844): first run, seed, tap, long-press popup, profile switcher, reset confirm
-(⋯ More on phone), Summary Day/Week/Month/Custom, Group by Focus, period picker, Settings → Categories. ~16 s. Prints
+(⋯ More on phone), Summary Day/Week/Month/Custom, Group by Focus, period picker, Settings → Categories, browser back,
+the hash route, then the site pages (landing, privacy, terms) and the landing's Open the app. ~18 s. Prints
 `OK: no page errors` or `FAIL: …` (exit 1). Screenshots: `.claude/skills/run-activity-tracker/out/smoke/{desktop,phone}/`
 (git-ignored). **Look at them** with the Read tool; a passing run can still look wrong.
 
@@ -47,7 +48,7 @@ node .claude/skills/run-activity-tracker/driver.mjs do --phone "ss check/phone-f
 | `ss <name> [full]` | screenshot to `out/<name>.png` (`full` = whole page) |
 | `text <sel>`, `eval <js>` | print innerText / the JSON of a page expression |
 
-Options: `--phone`, `--url <url>` (another server, e.g. `http://localhost:8765/`), `--out <dir>`.
+Options: `--phone`, `--url <url>` (another server, e.g. `http://localhost:8765/app/`), `--out <dir>`.
 Useful selectors: `.act` (main buttons, `.act.active` running), `.prof` (profile button), `button[aria-label="Summary"|"Settings"|"Reset day"|"Close app"]`,
 `button[aria-label^="More"]` (phone), `.modal` / `.modal-confirm` (dialogs), `.period-kinds`, `.group-by`, `.period-label`, `.picker`,
 `button.day-row`, `.share-row.option`, `.blocks.big .block`.
